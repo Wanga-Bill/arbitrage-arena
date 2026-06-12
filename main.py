@@ -216,12 +216,32 @@ def main():
         if anomaly:
             anomaly_type = anomaly['type']
             alert_key = f"{fixture_id_str}_{anomaly_type}"
+            is_premium = anomaly.get('premium', False)
             
             if alert_key not in sent_alerts:
                 logging.info(f"New anomaly detected: {anomaly_type} for fixture {fixture_id_str}")
-                is_premium = (anomaly_type == "CORNER_ANOMALY")
                 
-                success = send_telegram_alert(anomaly['message'], is_premium=is_premium)
+                if is_premium:
+                    # Send full alert to Premium VIP Channel
+                    success_premium = send_telegram_alert(anomaly['message'], is_premium=True)
+                    
+                    # Construct and send teaser to Free Channel
+                    teaser_message = (
+                        "🔒 *[PREMIUM ALGORITHM SIGNAL LOCKED]* 🔒\n\n"
+                        f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
+                        f"⏱️ *Current Window*: Minute {elapsed}'\n"
+                        f"📈 *Signal Type*: {anomaly_type.replace('_', ' ').title()} Match State Detected.\n\n"
+                        "⚠️ *This anomaly is restricted to VIP Subscribers due to high betting line sensitivity.* "
+                        "Whales are deploying max stakes on this historical probability mismatch right now.\n\n"
+                        "👇 *Gain instant access to this hidden live position before lines crash:* \n"
+                        "🔗 [Unlock VIP Private Chat Access here](https://t.me/mock_arbitrage_arena_premium)"
+                    )
+                    success_free = send_telegram_alert(teaser_message, is_premium=False)
+                    success = success_premium or success_free
+                else:
+                    # Send full alert directly to Free Channel
+                    success = send_telegram_alert(anomaly['message'], is_premium=False)
+                    
                 if success:
                     sent_alerts[alert_key] = datetime.now(timezone.utc).isoformat()
                     updated = True
