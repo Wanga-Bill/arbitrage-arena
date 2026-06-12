@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Cup Arbitrage Anomaly Agent - Sports Analytics</title>
+    <meta name="description" content="AI-Powered mathematical anomaly alerts for live World Cup and global football matches, expanding to the entire sports industry.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Inline CSS for Premium Styling -->
+    <style>
+        :root {
+            --bg-color: #0b071e;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #ffffff;
+            --text-secondary: #a3a1cc;
+            --primary-glow: linear-gradient(135deg, #7928ca, #ff0080);
+            --premium-glow: linear-gradient(135deg, #f39c12, #f1c40f);
+            --accent-pink: #ff0080;
+            --accent-purple: #7928ca;
+            --accent-gold: #f1c40f;
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(121, 40, 202, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 128, 0.12) 0%, transparent 45%);
+            font-family: var(--font-body);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Container & Grid Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem 1.5rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5rem;
+        }
+
+        .logo {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(to right, #ffffff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: '⚽';
+            font-size: 1.4rem;
+        }
+
+        .badge-live {
+            background: rgba(255, 0, 128, 0.1);
+            border: 1px solid rgba(255, 0, 128, 0.2);
+            color: var(--accent-pink);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.3rem 0.8rem;
+            border-radius: 9999px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        /* Hero Section */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            margin-bottom: 6rem;
+        }
+
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+                text-align: center;
+            }
+        }
+
+        .hero-content h1 {
+            font-family: var(--font-display);
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -1.5px;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #ffffff, #dcdbfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-content h1 span {
+            background: var(--primary-glow);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-content p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            max-width: 540px;
+        }
+
+        @media (max-width: 900px) {
+            .hero-content p {
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+
+        /* Premium Glassmorphic Input Form */
+        .waitlist-form {
+            display: flex;
+            gap: 0.75rem;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            max-width: 500px;
+            transition: border-color 0.3s;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 550px) {
+            .waitlist-form {
+                flex-direction: column;
+                padding: 0.75rem;
+            }
+        }
+
+        .waitlist-form:focus-within {
+            border-color: rgba(255, 0, 128, 0.4);
+        }
+
+        .waitlist-form input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .waitlist-form input::placeholder {
+            color: #5d5a8a;
+        }
+
+        .waitlist-form button {
+            background: var(--primary-glow);
+            color: #ffffff;
+            border: none;
+            outline: none;
+            padding: 0.8rem 1.8rem;
+            border-radius: 12px;
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            white-space: nowrap;
+        }
+
+        .waitlist-form button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.4);
+        }
+
+        /* Success Message styling */
+        .success-message {
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(46, 213, 115, 0.1);
+            border: 1px solid rgba(46, 213, 115, 0.2);
+            color: #2ed573;
+            padding: 1rem;
+            border-radius: 12px;
+            max-width: 500px;
+            font-weight: 500;
+        }
+
+        /* Live Telegram Mockup Simulator */
+        .phone-mockup {
+            background: #110d29;
+            border-radius: 36px;
+            border: 8px solid #1a153b;
+            height: 480px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .phone-header {
+            background: #151033;
+            padding: 0.8rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .phone-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.8rem;
+        }
+
+        .phone-title {
+            flex-grow: 1;
+        }
+
+        .phone-title h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .phone-title p {
+            font-size: 0.7rem;
+            color: var(--accent-pink);
+        }
+
+        .phone-body {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            justify-content: flex-end;
+            background-image: radial-gradient(circle at center, rgba(121, 40, 202, 0.05) 0%, transparent 100%);
+        }
+
+        /* Simulator Messages */
+        .telegram-alert {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            border-left: 3px solid var(--accent-pink);
+            padding: 0.8rem;
+            font-size: 0.75rem;
+            max-width: 85%;
+            align-self: flex-start;
+            font-family: var(--font-body);
+            transform: translateY(20px);
+            opacity: 0;
+            animation: slideInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .telegram-alert.premium {
+            border-left-color: var(--accent-gold);
+            background: rgba(241, 196, 15, 0.03);
+        }
+
+        @keyframes slideInUp {
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Channels Section */
+        .channels-title {
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            letter-spacing: -0.5px;
+        }
+
+        .channels-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        @media (max-width: 768px) {
+            .channels-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .glass-card.premium-card {
+            border-color: rgba(241, 196, 15, 0.15);
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(241,196,15,0.01) 100%);
+        }
+
+        .glass-card.premium-card:hover {
+            border-color: rgba(241, 196, 15, 0.3);
+            box-shadow: 0 15px 45px rgba(241, 196, 15, 0.08);
+        }
+
+        .card-badge {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: var(--premium-glow);
+            color: #0b071e;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-title {
+            font-family: var(--font-display);
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-price {
+            font-size: 2.25rem;
+            font-family: var(--font-display);
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-price span {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .card-desc {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .card-features {
+            list-style: none;
+            margin-bottom: 2.5rem;
+            flex-grow: 1;
+        }
+
+        .card-features li {
+            font-size: 0.95rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #dcdbfa;
+        }
+
+        .card-features li::before {
+            content: '✓';
+            color: var(--accent-pink);
+            font-weight: 800;
+        }
+
+        .premium-card .card-features li::before {
+            color: var(--accent-gold);
+        }
+
+        .card-btn {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            padding: 1rem;
+            border-radius: 14px;
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+
+        .card-btn:hover {
+            background: #ffffff;
+            color: var(--bg-color);
+            transform: scale(1.01);
+        }
+
+        .premium-card .card-btn {
+            background: var(--premium-glow);
+            border: none;
+            color: #0b071e;
+        }
+
+        .premium-card .card-btn:hover {
+            box-shadow: 0 4px 20px rgba(241, 196, 15, 0.4);
+            filter: brightness(1.05);
+        }
+
+        /* Roadmap Section */
+        .roadmap-section {
+            margin-bottom: 5rem;
+            padding-top: 4rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .roadmap-title {
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            letter-spacing: -0.5px;
+        }
+
+        .roadmap-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .roadmap-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .roadmap-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .roadmap-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .roadmap-card.active {
+            border-color: rgba(255, 0, 128, 0.3);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 0, 128, 0.01) 100%);
+        }
+
+        .roadmap-card.active::before {
+            content: 'ACTIVE BETA';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: var(--accent-pink);
+            color: #ffffff;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .roadmap-phase {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent-pink);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .roadmap-card.active .roadmap-phase {
+            color: #ffffff;
+        }
+
+        .roadmap-card.future-1 .roadmap-phase {
+            color: var(--text-secondary);
+        }
+
+        .roadmap-card.future-2 .roadmap-phase {
+            color: var(--accent-gold);
+        }
+
+        .roadmap-card h4 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .roadmap-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 2rem;
+            color: #5d5a8a;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Header -->
+        <header>
+            <div class="logo">Arbitrage Arena</div>
+            <div class="badge-live">Live Beta</div>
+        </header>
+
+        <!-- Hero Grid -->
+        <section class="hero">
+            
+            <div class="hero-content">
+                <h1>World Cup <span>Arbitrage Anomaly</span> Agent</h1>
+                <p>Stay ahead of sports books. Our real-time data science engine monitors live World Cup fixtures, analyzes dynamic anomalies, and broadcasts instant alerts to Telegram. Currently focused on the World Cup, preparing for wider football leagues and multi-sport arbitrage in Beta 2.</p>
+                
+                <!-- Subscription Form -->
+                <form id="waitlistForm" class="waitlist-form" onsubmit="handleFormSubmit(event)">
+                    <input type="email" id="emailInput" placeholder="Enter your email for alert updates..." required>
+                    <button type="submit">Get Updates</button>
+                </form>
+                
+                <!-- Success Message -->
+                <div id="successMsg" class="success-message">
+                    <span>✓</span> Thank you! You've been added to the early notifications list.
+                </div>
+            </div>
+
+            <!-- Interactive Telegram Mockup -->
+            <div class="phone-mockup">
+                <div class="phone-header">
+                    <div class="phone-avatar">AA</div>
+                    <div class="phone-title">
+                        <h4>Arbitrage Arena Agent</h4>
+                        <p>typing alert...</p>
+                    </div>
+                </div>
+                <div class="phone-body" id="simulatorBody">
+                    <!-- Alerts will render here in real time via JavaScript -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Channels Grid -->
+        <section>
+            <h2 class="channels-title">Choose Your Alert Feed</h2>
+            <div class="channels-grid">
+                
+                <!-- Free Channel -->
+                <div class="glass-card">
+                    <h3 class="card-title">Free Alert Feed</h3>
+                    <div class="card-price">Free <span>/ lifetime</span></div>
+                    <p class="card-desc">Essential in-play anomalies, ideal for casual builders and sports enthusiasts.</p>
+                    <ul class="card-features">
+                        <li>Standard Attacking Pressure alerts</li>
+                        <li>Basic possession threshold monitoring</li>
+                        <li>15-minute cron pipeline checking</li>
+                        <li>Direct Telegram channel delivery</li>
+                    </ul>
+                    <a href="https://t.me/mock_arbitrage_arena_free" target="_blank" class="card-btn">Join Free Telegram</a>
+                </div>
+
+                <!-- Premium Channel -->
+                <div class="glass-card premium-card">
+                    <div class="card-badge">MONETIZATION READY</div>
+                    <h3 class="card-title">VIP Premium Alerts</h3>
+                    <div class="card-price">$49 <span>/ month</span></div>
+                    <p class="card-desc">Advanced high-rate anomalies, disciplinary card blitzes, and match dynamics tracking.</p>
+                    <ul class="card-features">
+                        <li>High Attacking Pressure Breakthrough indicators</li>
+                        <li>Corner Blitz rate alerts (30'-60' window)</li>
+                        <li>Red Card match-dynamics alerts</li>
+                        <li>Yellow Card Blitz disciplinary alerts</li>
+                        <li>Dedicated Referee statistics context</li>
+                    </ul>
+                    <a href="https://t.me/mock_arbitrage_arena_premium" target="_blank" class="card-btn">Subscribe to VIP Premium</a>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Roadmap / Evolutionary Path Section -->
+        <section class="roadmap-section">
+            <h2 class="roadmap-title">Roadmap: The Evolution of Arbitrage Arena</h2>
+            <div class="roadmap-grid">
+                
+                <!-- Phase 1: Current -->
+                <div class="roadmap-card active">
+                    <div class="roadmap-phase">Phase 1 (Current Focus)</div>
+                    <h4>World Cup Arbitrage Anomaly Agent</h4>
+                    <p>Real-time statistical anomaly monitoring and Telegram broadcast for all live World Cup fixtures. Our live-data feed is fine-tuned to capture high-pressure scoreless intervals, corner rate spikes, and physical card blitzes.</p>
+                </div>
+
+                <!-- Phase 2: Next -->
+                <div class="roadmap-card future-1">
+                    <div class="roadmap-phase">Phase 2 (Beta 1.5)</div>
+                    <h4>Global Football Expansion</h4>
+                    <p>Expanding the analytical models to track major football leagues worldwide—including the English Premier League, UEFA Champions League, La Liga, and Serie A. This phase introduces cross-league comparison algorithms.</p>
+                </div>
+
+                <!-- Phase 3: Beta 2 -->
+                <div class="roadmap-card future-2">
+                    <div class="roadmap-phase">Phase 3 (Beta 2.0)</div>
+                    <h4>Full Sports Industry Coverage</h4>
+                    <p>Unlocking the full arbitrage engine for multiple sports. This expansion will run AI-driven predictive anomaly modeling for Basketball (NBA/EuroLeague), American Football (NFL), Tennis (ATP/WTA), and Esports.</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 Arbitrage Arena Inc. All rights reserved. Powered by API-Football and Serverless GitHub Actions.</p>
+        </footer>
+
+    </div>
+
+    <!-- Script to simulate live Telegram feeds -->
+    <script>
+        const mockAlerts = [
+            {
+                premium: false,
+                html: `⚠️ <b>LIVE WORLD CUP ANOMALY DETECTED</b> ⚠️<br><br>🏟️ <b>Match:</b> Mexico vs Poland<br>⏱️ <b>Time:</b> Minute 32'<br>📊 <b>Score:</b> 0 - 0<br><br>🔥 Dominant Side: <b>Poland</b><br>📈 Possession: Home 35% | Away 65%<br>🎯 Shots On Goal: Home 0 | Away 5`
+            },
+            {
+                premium: true,
+                html: `🚩 <b>LIVE MATCH ALERT: CORNER BLITZ</b> 🚩<br><br>🏟️ <b>Match:</b> Germany vs Japan<br>⏱️ <b>Time:</b> Minute 42'<br>📊 Total Match Corners: <b>9</b> (High rate)<br>👤 <b>Referee:</b> Ivan Barton<br><br>💡 <i>Check Live Over Corner options.</i>`
+            },
+            {
+                premium: true,
+                html: `🟥 <b>RED CARD ALERT</b> 🟥<br><br>🏟️ <b>Match:</b> Argentina vs Saudi Arabia<br>⏱️ <b>Time:</b> Minute 68'<br>📊 <b>Score:</b> 1 - 2<br><br>🚨 Red Card Issued to: <b>Saudi Arabia</b><br>👤 <b>Referee:</b> Slavko Vincic`
+            },
+            {
+                premium: true,
+                html: `🟨 <b>CARD BLITZ WARNING</b> 🟨<br><br>🏟️ <b>Match:</b> Spain vs Costa Rica<br>⏱️ <b>Time:</b> Minute 38'<br>📊 Total Yellow Cards: <b>5</b> (High rate for 1st Half)<br>👤 <b>Referee:</b> Mohammed Abdulla Hassan Mohamed`
+            }
+        ];
+
+        const simulatorBody = document.getElementById('simulatorBody');
+        let alertIdx = 0;
+
+        function addSimulatedAlert() {
+            // Remove first message if there are too many
+            if (simulatorBody.children.length >= 2) {
+                simulatorBody.removeChild(simulatorBody.firstChild);
+            }
+
+            const alertData = mockAlerts[alertIdx];
+            const div = document.createElement('div');
+            div.className = `telegram-alert ${alertData.premium ? 'premium' : ''}`;
+            div.innerHTML = alertData.html;
+            
+            simulatorBody.appendChild(div);
+            
+            // Increment index
+            alertIdx = (alertIdx + 1) % mockAlerts.length;
+        }
+
+        // Run initial simulations
+        setTimeout(addSimulatedAlert, 800);
+        setInterval(addSimulatedAlert, 6000);
+
+        // Form handler
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const emailInput = document.getElementById('emailInput');
+            const waitlistForm = document.getElementById('waitlistForm');
+            const successMsg = document.getElementById('successMsg');
+            
+            if (emailInput.value) {
+                waitlistForm.style.display = 'none';
+                successMsg.style.display = 'flex';
+            }
+        }
+    </script>
+</body>
+</html>

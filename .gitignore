@@ -1,0 +1,12 @@
+.env
+schedule.json
+sent_alerts.json
+__pycache__/
+*.pyc
+check_time.py
+send_mock_alert.py
+simulate_usa_game.py
+desktop.ini
+gemini
+gemini.cmd
+gemini.ps1
