@@ -231,16 +231,39 @@ def run_pipeline():
                     logging.info(f"Premium signal successfully pushed to VIP layer. Tier: {anomaly_type}")
                     
                     # Construct and send teaser to Free Channel
-                    teaser_message = (
-                        "🔒 *[PREMIUM MODEL MISMATCH DETECTED]* 🔒\n\n"
-                        f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
-                        f"⏱️ *Current Window*: Minute {elapsed}'\n"
-                        "📈 *Indicator Matrix*: High-Stake / Low-Risk Probability Arbitrage Node.\n\n"
-                        "⚠️ *Notice*: This signal has met the criteria for our maximum confidence thresholds. "
-                        "To prevent betting line collapse, the full position is restricted to verified subscribers.\n\n"
-                        "👇 *Unlock the real-time target and protect your bankroll instantly:* \n"
-                        "🔗 [Join The Premium Whale Vault Here](https://t.me/mock_arbitrage_arena_premium)"
-                    )
+                    if anomaly_type == "WHALE_VAULT":
+                        teaser_message = (
+                            "🔒 *[HIGH-CONFIDENCE ALGORITHMIC SIGNAL LOCKED]* 🔒\n\n"
+                            f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
+                            "📊 *Confidence Rating*: **94.2% Sure Win Parameters Match**\n\n"
+                            "🔥 This position is tailored specifically for heavy bankroll deployment. "
+                            "Because high-stake volume shifts market odds rapidly, the exact target is locked behind VIP.\n\n"
+                            "👉 [Unlock This Whale Vault Alert Instantly](https://t.me/mock_arbitrage_arena_premium)\n\n"
+                            "💰 *No VIP allocation left?* Secure a Risk-Free $200 Match Bet to offset line adjustments on this game via our verified partner:\n"
+                            f"▶️ [Claim Your High-Stakes SignUp Bonus Here]({Config.INCOME_ACCESS_LINK})"
+                        )
+                    elif anomaly_type == "HIGH_YIELD":
+                        teaser_message = (
+                            "🚀 *[MARKET MISPRICING ALERTS: OPEN]* 🚀\n\n"
+                            f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
+                            "⚡ *Anomaly Matrix*: High Premium Odds / Expected Goal Variance Detected.\n\n"
+                            "The public lines are lagging behind real-time on-field possession analytics by +18%.\n\n"
+                            "👇 *Capitalize on this premium underdog/draw shift instantly:* \n"
+                            "🔗 [Get Instant VIP Analytics Feed](https://t.me/mock_arbitrage_arena_premium)\n\n"
+                            "🎰 *Maximize Your Yield:* This bookie is currently offering boosted 4.50+ multipliers on this specific match phase window:\n"
+                            f"▶️ [Bet the Variance with a 100% Deposit Match]({Config.GAMBLING_ATTACK_LINK})"
+                        )
+                    else:
+                        teaser_message = (
+                            "🔒 *[PREMIUM MODEL MISMATCH DETECTED]* 🔒\n\n"
+                            f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
+                            f"⏱️ *Current Window*: Minute {elapsed}'\n"
+                            "📈 *Indicator Matrix*: High-Stake / Low-Risk Probability Arbitrage Node.\n\n"
+                            "⚠️ *Notice*: This signal has met the criteria for our maximum confidence thresholds. "
+                            "To prevent betting line collapse, the full position is restricted to verified subscribers.\n\n"
+                            "👇 *Unlock the real-time target and protect your bankroll instantly:* \n"
+                            "🔗 [Join The Premium Whale Vault Here](https://t.me/mock_arbitrage_arena_premium)"
+                        )
                     success_free = send_telegram_alert(teaser_message, is_premium=False)
                     success = success_premium or success_free
                 else:
