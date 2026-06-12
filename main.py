@@ -9,8 +9,11 @@ from config import Config
 from engine import fetch_live_world_cup_matches, analyze_match_anomalies
 from bot import send_telegram_alert
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# Hook directly into OpenClaw's stdout logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - [OpenClaw-Arbitrage] - %(levelname)s - %(message)s'
+)
 
 SCHEDULE_FILE = "schedule.json"
 SENT_ALERTS_FILE = "sent_alerts.json"
@@ -143,7 +146,8 @@ def check_active_windows(fixtures):
                 
     return today_fixtures, active_fixtures
 
-def main():
+def run_pipeline():
+    logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
     dry_run = "--dry-run" in sys.argv or os.getenv("DRY_RUN") == "True"
     
     if dry_run:
@@ -176,7 +180,7 @@ def main():
     logging.info("API Guardrail passed. Querying live fixtures...")
     live_matches = fetch_live_world_cup_matches()
     if not live_matches:
-        logging.info("No matches are currently active on the live endpoint.")
+        logging.info("No active high-variance match windows found at this checkpoint.")
         return
 
     logging.info(f"Found {len(live_matches)} live match(es). Analyzing for anomalies...")
@@ -224,17 +228,18 @@ def main():
                 if is_premium:
                     # Send full alert to Premium VIP Channel
                     success_premium = send_telegram_alert(anomaly['message'], is_premium=True)
+                    logging.info(f"Premium signal successfully pushed to VIP layer. Tier: {anomaly_type}")
                     
                     # Construct and send teaser to Free Channel
                     teaser_message = (
-                        "🔒 *[PREMIUM ALGORITHM SIGNAL LOCKED]* 🔒\n\n"
+                        "🔒 *[PREMIUM MODEL MISMATCH DETECTED]* 🔒\n\n"
                         f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
                         f"⏱️ *Current Window*: Minute {elapsed}'\n"
-                        f"📈 *Signal Type*: {anomaly_type.replace('_', ' ').title()} Match State Detected.\n\n"
-                        "⚠️ *This anomaly is restricted to VIP Subscribers due to high betting line sensitivity.* "
-                        "Whales are deploying max stakes on this historical probability mismatch right now.\n\n"
-                        "👇 *Gain instant access to this hidden live position before lines crash:* \n"
-                        "🔗 [Unlock VIP Private Chat Access here](https://t.me/mock_arbitrage_arena_premium)"
+                        "📈 *Indicator Matrix*: High-Stake / Low-Risk Probability Arbitrage Node.\n\n"
+                        "⚠️ *Notice*: This signal has met the criteria for our maximum confidence thresholds. "
+                        "To prevent betting line collapse, the full position is restricted to verified subscribers.\n\n"
+                        "👇 *Unlock the real-time target and protect your bankroll instantly:* \n"
+                        "🔗 [Join The Premium Whale Vault Here](https://t.me/mock_arbitrage_arena_premium)"
                     )
                     success_free = send_telegram_alert(teaser_message, is_premium=False)
                     success = success_premium or success_free
@@ -251,5 +256,7 @@ def main():
     if updated:
         save_sent_alerts(sent_alerts)
 
+main = run_pipeline
+
 if __name__ == "__main__":
-    main()
+    run_pipeline()
