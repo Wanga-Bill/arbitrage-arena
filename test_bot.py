@@ -16,7 +16,7 @@ class TestWorldCupBot(unittest.TestCase):
     
     def setUp(self):
         # Clear files before each test
-        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE, engine.FEEDBACK_FILE]:
+        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE, engine.FEEDBACK_FILE, "agent_memory.db"]:
             if os.path.exists(f):
                 try:
                     os.remove(f)
@@ -25,7 +25,7 @@ class TestWorldCupBot(unittest.TestCase):
 
     def tearDown(self):
         # Clean up files after each test
-        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE, engine.FEEDBACK_FILE]:
+        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE, engine.FEEDBACK_FILE, "agent_memory.db"]:
             if os.path.exists(f):
                 try:
                     os.remove(f)
@@ -492,6 +492,163 @@ class TestWorldCupBot(unittest.TestCase):
         self.assertAlmostEqual(feedback["WHALE_VAULT"]["bias_adjustment"], -0.02)
         self.assertEqual(feedback["PRESSURE_ANOMALY"]["failures"], 1)
         self.assertAlmostEqual(feedback["PRESSURE_ANOMALY"]["bias_adjustment"], -0.02)
+
+    def test_sqlite_initialization_and_weights(self):
+        import backtest_handler
+        import sqlite3
+        
+        backtest_handler.initialize_memory_db()
+        self.assertTrue(os.path.exists("agent_memory.db"))
+        
+        # Test default weight
+        self.assertEqual(backtest_handler.get_current_weight("WHALE_VAULT"), 1.0)
+        
+        # Mock insert prediction
+        conn = sqlite3.connect('agent_memory.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO historical_logs (fixture_id, match_name, calculated_prob, trigger_type, outcome, current_weight) VALUES (?, ?, ?, ?, ?, ?)",
+            (999, "Test vs Mock", 0.95, "WHALE_VAULT", -1, 1.0)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Reward outcome (hit and prob >= 0.85) -> min(1.25, weight + 0.05)
+        new_w = backtest_handler.evaluate_and_adjust_weights(999, "WHALE_VAULT", 1)
+        self.assertAlmostEqual(new_w, 1.05)
+        self.assertAlmostEqual(backtest_handler.get_current_weight("WHALE_VAULT"), 1.05)
+
+        # Mock penalty prediction (fail and prob >= 0.90) -> max(0.50, weight - 0.15)
+        conn = sqlite3.connect('agent_memory.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO historical_logs (fixture_id, match_name, calculated_prob, trigger_type, outcome, current_weight) VALUES (?, ?, ?, ?, ?, ?)",
+            (888, "Test vs Mock 2", 0.92, "HIGH_YIELD", -1, 1.0)
+        )
+        conn.commit()
+        conn.close()
+        
+        new_w2 = backtest_handler.evaluate_and_adjust_weights(888, "HIGH_YIELD", 0)
+        self.assertAlmostEqual(new_w2, 0.85)
+        self.assertAlmostEqual(backtest_handler.get_current_weight("HIGH_YIELD"), 0.85)
+
+    @patch('engine.fetch_match_statistics')
+    def test_kelly_criterion_stake_whale(self, mock_stats):
+        import backtest_handler
+        backtest_handler.initialize_memory_db()
+        
+        # Lead by 2 goals, elapsed 75 -> base_prob = 0.95.
+        # If weight is 1.0 -> prob = 0.95. Goal diff >= 2 -> odds = 1.08 -> b = 0.08.
+        # f* = (0.95 * 1.08 - 1) / 0.08 = 0.325 (32.5% allocation) -> >= 0.08 -> MAX STAKE label
+        mock_stats.return_value = [
+            {
+                "period": "ALL",
+                "groups": [
+                    {
+                        "groupName": "Match overview",
+                        "statisticsItems": [
+                            {"key": "ballPossession", "homeValue": 70, "awayValue": 30},
+                            {"key": "shotsOnGoal", "homeValue": 10, "awayValue": 1}
+                        ]
+                    }
+                ]
+            }
+        ]
+        
+        current_ts = int(time_lib.time())
+        fixture_data = {
+            "id": 777,
+            "status": {"description": "2nd half"},
+            "time": {"currentPeriodStartTimestamp": current_ts - 30 * 60}, # 75th minute
+            "homeTeam": {"name": "Team A"},
+            "awayTeam": {"name": "Team B"},
+            "homeScore": {"current": 2},
+            "awayScore": {"current": 0}
+        }
+        
+        anomaly = engine.analyze_match_anomalies(fixture_data)
+        self.assertIsNotNone(anomaly)
+        self.assertEqual(anomaly['type'], "WHALE_VAULT")
+        self.assertIn("MAX STAKE / HIGH ASSET ALLOCATION", anomaly['message'])
+        self.assertIn("Kelly Allocation", anomaly['message'])
+        self.assertIn("32.5%", anomaly['message'])
+
+    @patch('engine.fetch_match_statistics')
+    def test_weight_throttling_guardrail(self, mock_stats):
+        import backtest_handler
+        import sqlite3
+        backtest_handler.initialize_memory_db()
+        
+        # Setup mock stats that triggers PRESSURE_ANOMALY
+        mock_stats.return_value = [
+            {
+                "period": "ALL",
+                "groups": [
+                    {
+                        "groupName": "Match overview",
+                        "statisticsItems": [
+                            {"key": "ballPossession", "homeValue": 65, "awayValue": 35},
+                            {"key": "shotsOnGoal", "homeValue": 5, "awayValue": 1},
+                            {"key": "cornerKicks", "homeValue": 2, "awayValue": 1}
+                        ]
+                    }
+                ]
+            }
+        ]
+        
+        current_ts = int(time_lib.time())
+        fixture_data = {
+            "id": 123,
+            "status": {"description": "1st half"},
+            "startTimestamp": current_ts - 35 * 60,
+            "homeTeam": {"name": "Team A"},
+            "awayTeam": {"name": "Team B"},
+            "homeScore": {"current": 0},
+            "awayScore": {"current": 0}
+        }
+        
+        # Normal weight 1.0 triggers pressure anomaly
+        anomaly = engine.analyze_match_anomalies(fixture_data)
+        self.assertIsNotNone(anomaly)
+        self.assertEqual(anomaly['type'], "PRESSURE_ANOMALY")
+        
+        # Inject weight 0.65 (under 0.70 throttle boundary)
+        conn = sqlite3.connect('agent_memory.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO historical_logs (fixture_id, match_name, calculated_prob, trigger_type, outcome, current_weight) VALUES (?, ?, ?, ?, ?, ?)",
+            (1122, "Dummy", 0.90, "PRESSURE_ANOMALY", 0, 0.65)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Weight under 0.70 should mute the pressure anomaly alert (return None)
+        anomaly_throttled = engine.analyze_match_anomalies(fixture_data)
+        self.assertIsNone(anomaly_throttled)
+
+    def test_brier_score_calculation(self):
+        import backtest_handler
+        import sqlite3
+        backtest_handler.initialize_memory_db()
+        
+        conn = sqlite3.connect('agent_memory.db')
+        cursor = conn.cursor()
+        # Predictions:
+        # Match 1: prob 0.90, outcome 1 (error 0.10, sq_error 0.01)
+        # Match 2: prob 0.80, outcome 0 (error 0.80, sq_error 0.64)
+        # Brier Score should be (0.01 + 0.64) / 2 = 0.325
+        cursor.executemany(
+            "INSERT INTO historical_logs (fixture_id, match_name, calculated_prob, trigger_type, outcome, current_weight) VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (1, "M1", 0.90, "WHALE_VAULT", 1, 1.0),
+                (2, "M2", 0.80, "HIGH_YIELD", 0, 1.0)
+            ]
+        )
+        conn.commit()
+        conn.close()
+        
+        bs = backtest_handler.calculate_brier_score()
+        self.assertAlmostEqual(bs, 0.325)
 
 if __name__ == '__main__':
     unittest.main()

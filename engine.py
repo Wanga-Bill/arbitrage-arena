@@ -4,6 +4,8 @@ import requests
 import logging
 import time as time_lib
 from config import Config
+import backtest_handler
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -186,47 +188,104 @@ def analyze_match_anomalies(fixture_data: dict):
     total_yellow = metrics['home_yellow_cards'] + metrics['away_yellow_cards']
     total_corners = metrics['home_corners'] + metrics['away_corners']
 
-    # Load feedback loop biases
+    # Load feedback loop biases & confidence weights
     bias_whale = load_feedback_bias("WHALE_VAULT")
     bias_high_yield = load_feedback_bias("HIGH_YIELD")
+    
+    weight_whale = backtest_handler.get_current_weight("WHALE_VAULT")
+    weight_high_yield = backtest_handler.get_current_weight("HIGH_YIELD")
+    weight_pressure = backtest_handler.get_current_weight("PRESSURE_ANOMALY")
 
     # 💎 TIER 1: THE WHALE VAULT (Premium - Win Probability > 92%)
-    if home_goals > away_goals or away_goals > home_goals:
-        leading_side = home_team if home_goals > away_goals else away_team
-        leading_possession = metrics['home_possession'] if home_goals > away_goals else metrics['away_possession']
-        leading_dominance = home_dominance if home_goals > away_goals else away_dominance
-        
-        prob = calculate_live_probability(elapsed_time, leading_dominance, home_goals, away_goals, bias_whale)
-        if prob > 0.92:
-            return {
-                "type": "WHALE_VAULT",
-                "premium": True,
-                "message": (
-                    "💎 *[WHALE VAULT: MAX STAKE SURE SIGNAL]* 💎\n\n"
+    if weight_whale >= 0.70:
+        if home_goals > away_goals or away_goals > home_goals:
+            leading_side = home_team if home_goals > away_goals else away_team
+            leading_possession = metrics['home_possession'] if home_goals > away_goals else metrics['away_possession']
+            leading_dominance = home_dominance if home_goals > away_goals else away_dominance
+            
+            base_prob = calculate_live_probability(elapsed_time, leading_dominance, home_goals, away_goals, bias_whale)
+            prob = min(0.99, base_prob * weight_whale)
+            
+            if prob > 0.92:
+                # Calculate Kelly stake
+                goal_diff = abs(home_goals - away_goals)
+                odds = 1.08 if goal_diff >= 2 else 1.25
+                b = odds - 1.0
+                f_star = (prob * (b + 1) - 1) / b
+                f_star = max(0.0, f_star)
+                
+                label = ""
+                if f_star >= 0.08:
+                    label = "\n🚨 *[MAX STAKE / HIGH ASSET ALLOCATION]* 🚨"
+                elif 0.03 <= f_star < 0.08:
+                    label = "\n📈 *[AGGRESSIVE VARIANCE OPPORTUNITY]* 📈"
+                    
+                hot_streak_flag = ""
+                if weight_whale >= 1.15:
+                    hot_streak_flag = "🔥 *[Verified Whale Lock - Hot Streak]* 🔥\n\n"
+                
+                message = (
+                    f"{hot_streak_flag}💎 *[WHALE VAULT: MAX STAKE SURE SIGNAL]* 💎{label}\n\n"
                     f"🏟️ *Match*: {home_team} vs {away_team}\n"
                     f"⏱️ *Time*: {elapsed_time}' | *Score*: {home_goals} - {away_goals}\n"
-                    f"📊 *Algorithmic Certainty*: **{prob * 100:.1f}%**\n\n"
+                    f"📊 *Algorithmic Certainty*: **{prob * 100:.1f}%**\n"
+                    f"💰 *Kelly Allocation*: **{f_star * 100:.1f}%** (Odds: {odds:.2f})\n\n"
                     f"💡 *Execution Matrix*: {leading_side} tracking at defensive lock down with {leading_possession}% containment layout. "
                     "Target Live Win / Under Market selections. Optimized for heavy bankroll compounding."
                 )
-            }
+                
+                return {
+                    "type": "WHALE_VAULT",
+                    "premium": True,
+                    "message": message,
+                    "calculated_prob": prob,
+                    "current_weight": weight_whale
+                }
 
     # 🔥 TIER 2: THE HIGH-YIELD PREMIUM ARBITRAGE (Premium - Underdog/Draw Value Spikes)
-    threshold_yield = 68.0 - (bias_high_yield * 10.0)
-    if home_goals == 0 and away_goals == 0 and elapsed_time > 30 and dominance_index > threshold_yield:
-        dominant_side = home_team if home_dominance > away_dominance else away_team
-        return {
-            "type": "HIGH_YIELD",
-            "premium": True,
-            "message": (
-                "🚀 *[HIGH-YIELD VALUE RADAR]* 🚀\n\n"
+    if weight_high_yield >= 0.70:
+        threshold_yield = 68.0 - (bias_high_yield * 10.0)
+        if home_goals == 0 and away_goals == 0 and elapsed_time > 30 and dominance_index > threshold_yield:
+            dominant_side = home_team if home_dominance > away_dominance else away_team
+            
+            # Estimate probability and adjust by confidence weight
+            base_prob = 0.40 + (dominance_index - 68.0) * 0.008
+            prob = min(0.99, base_prob * weight_high_yield)
+            
+            # Calculate Kelly stake
+            odds = 2.10
+            b = odds - 1.0
+            f_star = (prob * (b + 1) - 1) / b
+            f_star = max(0.0, f_star)
+            
+            label = ""
+            if f_star >= 0.08:
+                label = "\n🚨 *[MAX STAKE / HIGH ASSET ALLOCATION]* 🚨"
+            elif 0.03 <= f_star < 0.08:
+                label = "\n📈 *[AGGRESSIVE VARIANCE OPPORTUNITY]* 📈"
+                
+            hot_streak_flag = ""
+            if weight_high_yield >= 1.15:
+                hot_streak_flag = "🔥 *[Verified Whale Lock - Hot Streak]* 🔥\n\n"
+                
+            message = (
+                f"{hot_streak_flag}🚀 *[HIGH-YIELD VALUE RADAR]* 🚀{label}\n\n"
                 f"🏟️ *Match*: {home_team} vs {away_team}\n"
                 f"⏱️ *Time*: {elapsed_time}' | *Score*: 0 - 0\n"
-                f"⚡ *Anomalous Target*: *{dominant_side}* Aggressive Front Loading\n\n"
+                f"⚡ *Anomalous Target*: *{dominant_side}* Aggressive Front Loading\n"
+                f"📊 *Algorithmic Certainty*: **{prob * 100:.1f}%**\n"
+                f"💰 *Kelly Allocation*: **{f_star * 100:.1f}%** (Odds: {odds:.2f})\n\n"
                 "💡 *Statistical Multiplier*: Real-time expected goals ($xG$) has deviated from public bookmaker market pricing by +18%. "
                 f"Value is locked on *{dominant_side} Next Goal* or *Asian Handicap* lines at high premium odds."
             )
-        }
+            
+            return {
+                "type": "HIGH_YIELD",
+                "premium": True,
+                "message": message,
+                "calculated_prob": prob,
+                "current_weight": weight_high_yield
+            }
 
     # 🟨 TIER 3: RED CARD ANOMALY (Free)
     if home_red_cards >= 1 or away_red_cards >= 1:
@@ -246,28 +305,39 @@ def analyze_match_anomalies(fixture_data: dict):
         }
 
     # ⚠️ TIER 4: PRESSURE ANOMALY (Free)
-    if (
-        20 <= elapsed_time <= 75 and
-        home_goals == 0 and away_goals == 0 and
-        ((metrics['home_shots_on_goal'] >= 4 and metrics['home_possession'] >= 62) or 
-         (metrics['away_shots_on_goal'] >= 4 and metrics['away_possession'] >= 62))
-    ):
-        dominant_team = home_team if metrics['home_possession'] > metrics['away_possession'] else away_team
-        return {
-            "type": "PRESSURE_ANOMALY",
-            "premium": False,
-            "message": (
-                "⚠️ *LIVE WORLD CUP ANOMALY DETECTED* ⚠️\n\n"
-                f"🏟️ *Match*: {home_team} vs {away_team}\n"
-                f"⏱️ *Time*: Minute {elapsed_time}'\n"
-                f"📊 *Score*: {home_goals} - {away_goals}\n"
-                f"👤 Referee: {referee_name}\n\n"
-                f"🔥 Dominant Side: *{dominant_team}*\n"
-                f"📈 Possession: Home {metrics['home_possession']}% | Away {metrics['away_possession']}%\n"
-                f"🎯 Shots On Goal: Home {metrics['home_shots_on_goal']} | Away {metrics['away_shots_on_goal']}\n\n"
-                f"💡 *Data Science Indicator*: Strong attacking dominance implies high mathematical probability of a breakthrough goal shortly."
-            )
-        }
+    if weight_pressure >= 0.70:
+        if (
+            20 <= elapsed_time <= 75 and
+            home_goals == 0 and away_goals == 0 and
+            ((metrics['home_shots_on_goal'] >= 4 and metrics['home_possession'] >= 62) or 
+             (metrics['away_shots_on_goal'] >= 4 and metrics['away_possession'] >= 62))
+        ):
+            dominant_team = home_team if metrics['home_possession'] > metrics['away_possession'] else away_team
+            
+            base_prob = 0.50 + (metrics['home_shots_on_goal'] if dominant_team == home_team else metrics['away_shots_on_goal']) * 0.05
+            prob = min(0.99, base_prob * weight_pressure)
+            
+            hot_streak_flag = ""
+            if weight_pressure >= 1.15:
+                hot_streak_flag = "🔥 *[Verified Whale Lock - Hot Streak]* 🔥\n\n"
+                
+            return {
+                "type": "PRESSURE_ANOMALY",
+                "premium": False,
+                "message": (
+                    f"{hot_streak_flag}⚠️ *LIVE WORLD CUP ANOMALY DETECTED* ⚠️\n\n"
+                    f"🏟️ *Match*: {home_team} vs {away_team}\n"
+                    f"⏱️ *Time*: Minute {elapsed_time}'\n"
+                    f"📊 *Score*: {home_goals} - {away_goals}\n"
+                    f"👤 Referee: {referee_name}\n\n"
+                    f"🔥 Dominant Side: *{dominant_team}*\n"
+                    f"📈 Possession: Home {metrics['home_possession']}% | Away {metrics['away_possession']}%\n"
+                    f"🎯 Shots On Goal: Home {metrics['home_shots_on_goal']} | Away {metrics['away_shots_on_goal']}\n\n"
+                    f"💡 *Data Science Indicator*: Strong attacking dominance implies high mathematical probability of a breakthrough goal shortly."
+                ),
+                "calculated_prob": prob,
+                "current_weight": weight_pressure
+            }
         
     # 🚩 TIER 5: CORNER BLITZ (Free)
     if 30 <= elapsed_time <= 60 and total_corners >= 7:

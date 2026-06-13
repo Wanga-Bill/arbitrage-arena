@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from config import Config
 from engine import fetch_live_world_cup_matches, analyze_match_anomalies, FEEDBACK_FILE
 from bot import send_telegram_alert
+import backtest_handler
 
 # Hook directly into OpenClaw's stdout logger
 logging.basicConfig(
@@ -273,7 +274,15 @@ def evaluate_concluded_matches():
                     tier_stats["failures"] += 1
                     tier_stats["bias_adjustment"] = max(tier_stats["bias_adjustment"] - 0.02, -0.10)
                     logging.info(f"Feedback Loop: FAILURE for {alert_key}. Penalty (-0.02 bias) applied.")
-                    
+                
+                # Closed-loop backtest evaluation
+                real_outcome = 1 if success else 0
+                new_weight = backtest_handler.evaluate_and_adjust_weights(match_id, alert_type, real_outcome)
+                if new_weight is not None:
+                    logging.info(f"Closed-loop SQLite weight for {alert_type} adjusted to {new_weight:.2f}")
+                bs = backtest_handler.calculate_brier_score()
+                logging.info(f"Cumulative Brier Score: {bs:.4f}")
+
                 val["evaluated"] = True
                 val["success"] = success
                 updated_alerts = True
@@ -291,6 +300,7 @@ def evaluate_concluded_matches():
 
 def run_pipeline():
     logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
+    backtest_handler.initialize_memory_db()
     dry_run = "--dry-run" in sys.argv or os.getenv("DRY_RUN") == "True"
     
     if dry_run:
@@ -402,6 +412,25 @@ def run_pipeline():
                         "predicted_winner": "home" if match.get('homeScore', {}).get('current', 0) > match.get('awayScore', {}).get('current', 0) else "away"
                     }
                     updated = True
+                    
+                    # Log prediction to database
+                    try:
+                        import sqlite3
+                        conn = sqlite3.connect('agent_memory.db')
+                        cursor = conn.cursor()
+                        match_name = f"{match['homeTeam']['name']} vs {match['awayTeam']['name']}"
+                        prob = anomaly.get('calculated_prob', 1.0)
+                        weight = anomaly.get('current_weight', 1.0)
+                        
+                        cursor.execute(
+                            "INSERT OR REPLACE INTO historical_logs (fixture_id, match_name, calculated_prob, trigger_type, outcome, current_weight) VALUES (?, ?, ?, ?, ?, ?)",
+                            (fixture_id, match_name, prob, anomaly_type, -1, weight)
+                        )
+                        conn.commit()
+                        conn.close()
+                        logging.info(f"Logged prediction to database: {match_name} ({anomaly_type}) with prob {prob:.2f} and weight {weight:.2f}")
+                    except Exception as db_e:
+                        logging.error(f"Error logging to SQLite: {db_e}")
             else:
                 logging.info(f"Duplicate alert prevented for {alert_key}")
                 
