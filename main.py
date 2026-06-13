@@ -301,6 +301,34 @@ def evaluate_concluded_matches():
 def run_pipeline():
     logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
     backtest_handler.initialize_memory_db()
+    
+    # Fetch bot username dynamically if not configured explicitly
+    if not Config.TELEGRAM_BOT_USERNAME or Config.TELEGRAM_BOT_USERNAME == "mock_arbitrage_arena_bot":
+        try:
+            url = f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/getMe"
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                username = resp.json().get("result", {}).get("username")
+                if username:
+                    Config.TELEGRAM_BOT_USERNAME = username
+                    logging.info(f"Dynamically fetched bot username from Telegram: @{username}")
+        except Exception as e:
+            logging.error(f"Error fetching bot username from Telegram: {e}")
+
+    # Write config.json for the landing page
+    try:
+        config_data = {
+            "bot_username": Config.TELEGRAM_BOT_USERNAME,
+            "free_channel_link": "https://t.me/mock_arbitrage_arena_free",
+            "premium_bot_link": f"https://t.me/{Config.TELEGRAM_BOT_USERNAME}?start=sub"
+        }
+        config_path = os.path.join("landing_page", "config.json")
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, indent=4)
+        logging.info(f"Wrote landing page config to {config_path}")
+    except Exception as e:
+        logging.error(f"Error writing landing page config: {e}")
+
     dry_run = "--dry-run" in sys.argv or os.getenv("DRY_RUN") == "True"
     
     if dry_run:

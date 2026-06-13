@@ -10,3 +10,6 @@ desktop.ini
 gemini
 gemini.cmd
 gemini.ps1
+agent_memory.db
+feedback_loop.json
+landing_page/config.json

@@ -315,12 +315,12 @@
 
         .channels-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 2rem;
             margin-bottom: 4rem;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
             .channels-grid {
                 grid-template-columns: 1fr;
             }
@@ -622,23 +622,51 @@
                         <li>15-minute cron pipeline checking</li>
                         <li>Direct Telegram channel delivery</li>
                     </ul>
-                    <a href="https://t.me/mock_arbitrage_arena_free" target="_blank" class="card-btn">Join Free Telegram</a>
+                    <a href="https://t.me/mock_arbitrage_arena_free" target="_blank" id="btn-free" class="card-btn">Join Free Telegram</a>
                 </div>
 
-                <!-- Premium Channel -->
+                <!-- Weekly VIP Pass -->
                 <div class="glass-card premium-card">
-                    <div class="card-badge">MONETIZATION READY</div>
-                    <h3 class="card-title">VIP Premium Alerts</h3>
-                    <div class="card-price">$49 <span>/ month</span></div>
-                    <p class="card-desc">Advanced high-rate anomalies, disciplinary card blitzes, and match dynamics tracking.</p>
+                    <div class="card-badge" style="background: var(--primary-glow); color: #ffffff;">TOURNAMENT PASS</div>
+                    <h3 class="card-title">VIP Weekly Pass</h3>
+                    <div class="card-price">$14.99 <span>/ week</span></div>
+                    <p class="card-desc">Ideal for short tournament runs. Advanced anomalies and real-time alerts.</p>
                     <ul class="card-features">
-                        <li>High Attacking Pressure Breakthrough indicators</li>
-                        <li>Corner Blitz rate alerts (30'-60' window)</li>
-                        <li>Red Card match-dynamics alerts</li>
-                        <li>Yellow Card Blitz disciplinary alerts</li>
-                        <li>Dedicated Referee statistics context</li>
+                        <li>Whale Vault Premium alerts (&gt;92% Certainty)</li>
+                        <li>High-Yield Value Radar alerts</li>
+                        <li>Kelly Criterion allocation stakes</li>
+                        <li>Real-time webhook notifications</li>
                     </ul>
-                    <a href="https://t.me/mock_arbitrage_arena_premium" target="_blank" class="card-btn">Subscribe to VIP Premium</a>
+                    <a href="https://t.me/mock_arbitrage_arena_premium" target="_blank" id="btn-weekly" class="card-btn">Unlock Weekly VIP</a>
+                    <div class="payment-methods" style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 0.5rem; align-items: center; justify-content: center; background: rgba(255,255,255,0.02); padding: 0.4rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <span>💳 Stripe</span>
+                        <span>•</span>
+                        <span>🅿️ PayPal</span>
+                        <span>•</span>
+                        <span>🪙 Crypto</span>
+                    </div>
+                </div>
+
+                <!-- Monthly VIP Pass -->
+                <div class="glass-card premium-card">
+                    <div class="card-badge">BEST VALUE</div>
+                    <h3 class="card-title">VIP Monthly Pass</h3>
+                    <div class="card-price">$29.99 <span>/ month</span></div>
+                    <p class="card-desc">Continuous full sports engine access. Complete mathematical risk mitigation.</p>
+                    <ul class="card-features">
+                        <li>Everything in Weekly VIP Pass</li>
+                        <li>Self-correcting feedback weight adjustment</li>
+                        <li>Historical validation database access</li>
+                        <li>24/7 proactive daemon heartbeats</li>
+                    </ul>
+                    <a href="https://t.me/mock_arbitrage_arena_premium" target="_blank" id="btn-monthly" class="card-btn">Unlock Monthly VIP</a>
+                    <div class="payment-methods" style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 0.5rem; align-items: center; justify-content: center; background: rgba(255,255,255,0.02); padding: 0.4rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <span>💳 Stripe</span>
+                        <span>•</span>
+                        <span>🅿️ PayPal</span>
+                        <span>•</span>
+                        <span>🪙 Crypto</span>
+                    </div>
                 </div>
 
             </div>
@@ -737,6 +765,33 @@
                 successMsg.style.display = 'flex';
             }
         }
+
+        // Dynamic Config Loader
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('config.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Config file not found, using default fallback links');
+                    }
+                    return response.json();
+                })
+                .then(config => {
+                    if (config.free_channel_link) {
+                        const freeBtn = document.getElementById('btn-free');
+                        if (freeBtn) freeBtn.href = config.free_channel_link;
+                    }
+                    if (config.premium_bot_link) {
+                        const weeklyBtn = document.getElementById('btn-weekly');
+                        if (weeklyBtn) weeklyBtn.href = config.premium_bot_link;
+                        const monthlyBtn = document.getElementById('btn-monthly');
+                        if (monthlyBtn) monthlyBtn.href = config.premium_bot_link;
+                    }
+                    console.log('Billing checkout links loaded dynamically:', config);
+                })
+                .catch(err => {
+                    console.warn(err.message);
+                });
+        });
     </script>
 </body>
 </html>
