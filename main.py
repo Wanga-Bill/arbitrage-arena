@@ -387,14 +387,13 @@ def run_pipeline():
                     
                     # Construct and send teaser to Free Channel
                     teaser_message = (
-                        "🔒 *[PREMIUM MODEL MISMATCH DETECTED]* 🔒\n\n"
-                        f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
-                        f"⏱️ *Current Window*: Minute {elapsed}'\n"
-                        "📈 *Indicator Matrix*: High-Stake / Low-Risk Probability Arbitrage Node.\n\n"
-                        "⚠️ *Notice*: This signal has met the criteria for our maximum confidence thresholds. "
-                        "To prevent betting line collapse, the full position is restricted to verified subscribers.\n\n"
-                        "👇 *Unlock the real-time target and protect your bankroll instantly:* \n"
-                        "🔗 [Join The Premium Whale Vault Here](https://t.me/mock_arbitrage_arena_premium)"
+                        "🔒 *[VIP MODEL MISMATCH ISOLATED]* 🔒\n\n"
+                        f"🏟️ *Match Phase*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
+                        "📈 *Certainty Index*: Max-Confidence Whale Security Alert Matrix.\n\n"
+                        "⚠️ *Line Sensitivity Restriction:* This premium model alert has cleared our highest risk-mitigation metrics. "
+                        "To shield the position from immediate odds devaluation by bookmakers, access is closed to public users.\n\n"
+                        "👇 *Unlock the live position target and mirror the smart money instantly:* \n"
+                        f"🔗 [Unlock Real-Time VIP Signal Access Here](https://t.me/{Config.TELEGRAM_BOT_USERNAME}?start=sub)"
                     )
                     success_free = send_telegram_alert(teaser_message, is_premium=False)
                     success = success_premium or success_free

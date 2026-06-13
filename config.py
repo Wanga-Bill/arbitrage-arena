@@ -10,6 +10,7 @@ class Config:
     
     FREE_CHANNEL_ID = os.getenv("TELEGRAM_FREE_CHANNEL_ID")
     PREMIUM_CHANNEL_ID = os.getenv("TELEGRAM_PREMIUM_CHANNEL_ID")
+    TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "mock_arbitrage_arena_bot")
     
     BASE_URL = "https://sportapi7.p.rapidapi.com/api/v1"
     
