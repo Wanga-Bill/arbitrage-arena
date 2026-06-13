@@ -320,7 +320,7 @@ def run_pipeline():
         config_data = {
             "bot_username": Config.TELEGRAM_BOT_USERNAME,
             "free_channel_link": "https://t.me/mock_arbitrage_arena_free",
-            "premium_bot_link": f"https://t.me/{Config.TELEGRAM_BOT_USERNAME}?start=sub"
+            "whop_checkout_link": Config.WHOP_CHECKOUT_LINK
         }
         config_path = os.path.join("landing_page", "config.json")
         with open(config_path, "w", encoding="utf-8") as f:
@@ -421,7 +421,7 @@ def run_pipeline():
                         "⚠️ *Line Sensitivity Restriction:* This premium model alert has cleared our highest risk-mitigation metrics. "
                         "To shield the position from immediate odds devaluation by bookmakers, access is closed to public users.\n\n"
                         "👇 *Unlock the live position target and mirror the smart money instantly:* \n"
-                        f"🔗 [Unlock Real-Time VIP Signal Access Here](https://t.me/{Config.TELEGRAM_BOT_USERNAME}?start=sub)"
+                        f"🔗 [Unlock Real-Time VIP Signal Access Here]({Config.WHOP_CHECKOUT_LINK})"
                     )
                     success_free = send_telegram_alert(teaser_message, is_premium=False)
                     success = success_premium or success_free
