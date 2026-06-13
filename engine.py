@@ -1,9 +1,23 @@
+import os
+import json
 import requests
 import logging
 import time as time_lib
 from config import Config
 
 logging.basicConfig(level=logging.INFO)
+
+FEEDBACK_FILE = "feedback_loop.json"
+
+def load_feedback_bias(tier: str) -> float:
+    if os.path.exists(FEEDBACK_FILE):
+        try:
+            with open(FEEDBACK_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get(tier, {}).get("bias_adjustment", 0.0)
+        except Exception as e:
+            logging.error(f"Error reading feedback loop file: {str(e)}")
+    return 0.0
 
 def fetch_live_world_cup_matches():
     url = f"{Config.BASE_URL}/sport/football/events/live"
@@ -55,7 +69,7 @@ def fetch_match_statistics(fixture_id: int):
         logging.error(f"Error fetching stats for event {fixture_id}: {str(e)}")
         return []
 
-def calculate_live_probability(elapsed_time: int, dominance_index: float, home_goals: int, away_goals: int) -> float:
+def calculate_live_probability(elapsed_time: int, dominance_index: float, home_goals: int, away_goals: int, bias_adjustment: float = 0.0) -> float:
     """
     Calculates a basic mathematical model of current match state security.
     Uses time decay and relative field dominance to predict clean sheet / favorite security.
@@ -64,10 +78,13 @@ def calculate_live_probability(elapsed_time: int, dominance_index: float, home_g
     goal_differential = abs(home_goals - away_goals)
     
     if goal_differential >= 2 and time_factor > 0.70:
-        return 0.95  # 95% certainty of favorite securing the win
+        base_prob = 0.95  # 95% certainty of favorite securing the win
     elif goal_differential == 1 and dominance_index > 75 and time_factor > 0.80:
-        return 0.93  # High-stake "Sure Option"
-    return 0.50 + (dominance_index * 0.004) # Standard baseline
+        base_prob = 0.93  # High-stake "Sure Option"
+    else:
+        base_prob = 0.50 + (dominance_index * 0.004) # Standard baseline
+        
+    return base_prob + bias_adjustment
 
 def analyze_match_anomalies(fixture_data: dict):
     fixture_id = fixture_data['id']
@@ -169,13 +186,17 @@ def analyze_match_anomalies(fixture_data: dict):
     total_yellow = metrics['home_yellow_cards'] + metrics['away_yellow_cards']
     total_corners = metrics['home_corners'] + metrics['away_corners']
 
+    # Load feedback loop biases
+    bias_whale = load_feedback_bias("WHALE_VAULT")
+    bias_high_yield = load_feedback_bias("HIGH_YIELD")
+
     # 💎 TIER 1: THE WHALE VAULT (Premium - Win Probability > 92%)
     if home_goals > away_goals or away_goals > home_goals:
         leading_side = home_team if home_goals > away_goals else away_team
         leading_possession = metrics['home_possession'] if home_goals > away_goals else metrics['away_possession']
         leading_dominance = home_dominance if home_goals > away_goals else away_dominance
         
-        prob = calculate_live_probability(elapsed_time, leading_dominance, home_goals, away_goals)
+        prob = calculate_live_probability(elapsed_time, leading_dominance, home_goals, away_goals, bias_whale)
         if prob > 0.92:
             return {
                 "type": "WHALE_VAULT",
@@ -191,7 +212,8 @@ def analyze_match_anomalies(fixture_data: dict):
             }
 
     # 🔥 TIER 2: THE HIGH-YIELD PREMIUM ARBITRAGE (Premium - Underdog/Draw Value Spikes)
-    if home_goals == 0 and away_goals == 0 and elapsed_time > 30 and dominance_index > 68:
+    threshold_yield = 68.0 - (bias_high_yield * 10.0)
+    if home_goals == 0 and away_goals == 0 and elapsed_time > 30 and dominance_index > threshold_yield:
         dominant_side = home_team if home_dominance > away_dominance else away_team
         return {
             "type": "HIGH_YIELD",

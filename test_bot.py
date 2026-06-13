@@ -16,7 +16,7 @@ class TestWorldCupBot(unittest.TestCase):
     
     def setUp(self):
         # Clear files before each test
-        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE]:
+        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE, engine.FEEDBACK_FILE]:
             if os.path.exists(f):
                 try:
                     os.remove(f)
@@ -25,7 +25,7 @@ class TestWorldCupBot(unittest.TestCase):
 
     def tearDown(self):
         # Clean up files after each test
-        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE]:
+        for f in [main.SCHEDULE_FILE, main.SENT_ALERTS_FILE, engine.FEEDBACK_FILE]:
             if os.path.exists(f):
                 try:
                     os.remove(f)
@@ -282,6 +282,216 @@ class TestWorldCupBot(unittest.TestCase):
             main.main()
             mock_log.assert_any_call("API Guardrail: No World Cup matches scheduled for today. Exiting.")
             mock_live.assert_not_called()
+
+    def test_load_feedback_bias_defaults(self):
+        bias = engine.load_feedback_bias("WHALE_VAULT")
+        self.assertEqual(bias, 0.0)
+
+    def test_load_feedback_bias_loaded(self):
+        import json
+        dummy = {
+            "WHALE_VAULT": {"successes": 5, "failures": 1, "bias_adjustment": 0.03}
+        }
+        with open(engine.FEEDBACK_FILE, "w", encoding="utf-8") as f:
+            json.dump(dummy, f)
+        
+        bias = engine.load_feedback_bias("WHALE_VAULT")
+        self.assertEqual(bias, 0.03)
+        bias_missing = engine.load_feedback_bias("HIGH_YIELD")
+        self.assertEqual(bias_missing, 0.0)
+
+    def test_calculate_live_probability_with_bias(self):
+        # Base probability with differential = 1, dominance > 75, time > 0.80 -> 0.93
+        # dominance_index = 80, elapsed = 85 (time_factor = 0.94), lead = 1
+        prob_no_bias = engine.calculate_live_probability(85, 80, 2, 1, bias_adjustment=0.0)
+        self.assertAlmostEqual(prob_no_bias, 0.93, places=4)
+        
+        prob_with_bias = engine.calculate_live_probability(85, 80, 2, 1, bias_adjustment=0.03)
+        self.assertAlmostEqual(prob_with_bias, 0.96, places=4)
+
+    @patch('engine.fetch_match_statistics')
+    def test_high_yield_threshold_adjustments(self, mock_stats):
+        # Set up mock statistics for High Yield (scoreless, min 35, dominance = 65.0)
+        # dominance_index = (50*0.4) + (30*1.5) = 20 + 45 = 65.0
+        # If bias is 0.0, threshold is 68.0 -> dominance 65.0 < 68.0 (No trigger)
+        # If bias is 0.4, threshold is 68.0 - 4.0 = 64.0 -> dominance 65.0 > 64.0 (Triggers!)
+        mock_stats.return_value = [
+            {
+                "period": "ALL",
+                "groups": [
+                    {
+                        "groupName": "Match overview",
+                        "statisticsItems": [
+                            {"key": "ballPossession", "homeValue": 50, "awayValue": 50},
+                            {"key": "shotsOnGoal", "homeValue": 30, "awayValue": 0}
+                        ]
+                    }
+                ]
+            }
+        ]
+        
+        current_ts = int(time_lib.time())
+        fixture_data = {
+            "id": 456,
+            "status": {"description": "1st half"},
+            "startTimestamp": current_ts - 35 * 60,
+            "homeTeam": {"name": "Team A"},
+            "awayTeam": {"name": "Team B"},
+            "homeScore": {"current": 0},
+            "awayScore": {"current": 0}
+        }
+        
+        # Test with no bias (should return None since 65 < 68)
+        with patch('engine.load_feedback_bias', return_value=0.0):
+            anomaly = engine.analyze_match_anomalies(fixture_data)
+            self.assertIsNone(anomaly)
+            
+        # Test with positive bias (should return HIGH_YIELD since 65 > 64)
+        with patch('engine.load_feedback_bias', return_value=0.4):
+            anomaly = engine.analyze_match_anomalies(fixture_data)
+            self.assertIsNotNone(anomaly)
+            self.assertEqual(anomaly['type'], "HIGH_YIELD")
+
+    @patch('main.fetch_match_incidents')
+    def test_evaluate_concluded_matches_success(self, mock_incidents):
+        import json
+        # Setup finished matches schedule
+        schedule_data = [
+            {
+                "id": 111,
+                "status": {"type": "finished"},
+                "homeScore": {"current": 2},
+                "awayScore": {"current": 0},
+                "homeTeam": {"name": "Team A"},
+                "awayTeam": {"name": "Team B"},
+                "tournament": {"name": "World Cup", "uniqueTournament": {"name": "World Cup"}}
+            },
+            {
+                "id": 222,
+                "status": {"type": "finished"},
+                "homeScore": {"current": 1},
+                "awayScore": {"current": 1},
+                "homeTeam": {"name": "Team C"},
+                "awayTeam": {"name": "Team D"},
+                "tournament": {"name": "World Cup", "uniqueTournament": {"name": "World Cup"}}
+            }
+        ]
+        with open(main.SCHEDULE_FILE, "w", encoding="utf-8") as f:
+            json.dump(schedule_data, f)
+            
+        # Setup sent alerts
+        # 111_WHALE_VAULT: predicted home (which won 2-0) -> Success
+        # 222_PRESSURE_ANOMALY: alert minute 40, goal scored minute 55 -> Success
+        sent_alerts = {
+            "111_WHALE_VAULT": {
+                "timestamp": "2026-06-13T00:00:00Z",
+                "evaluated": False,
+                "minute": 70,
+                "type": "WHALE_VAULT",
+                "predicted_winner": "home"
+            },
+            "222_PRESSURE_ANOMALY": {
+                "timestamp": "2026-06-13T00:00:00Z",
+                "evaluated": False,
+                "minute": 40,
+                "type": "PRESSURE_ANOMALY"
+            }
+        }
+        with open(main.SENT_ALERTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(sent_alerts, f)
+            
+        # Mock incidents for 222: Goal at 55
+        mock_incidents.return_value = [
+            {"incidentType": "goal", "time": 55, "isHome": True}
+        ]
+        
+        main.evaluate_concluded_matches()
+        
+        # Check sent alerts updated
+        with open(main.SENT_ALERTS_FILE, "r", encoding="utf-8") as f:
+            alerts_after = json.load(f)
+        self.assertTrue(alerts_after["111_WHALE_VAULT"]["evaluated"])
+        self.assertTrue(alerts_after["111_WHALE_VAULT"]["success"])
+        self.assertTrue(alerts_after["222_PRESSURE_ANOMALY"]["evaluated"])
+        self.assertTrue(alerts_after["222_PRESSURE_ANOMALY"]["success"])
+        
+        # Check feedback loop bias increased
+        with open(engine.FEEDBACK_FILE, "r", encoding="utf-8") as f:
+            feedback = json.load(f)
+        self.assertEqual(feedback["WHALE_VAULT"]["successes"], 1)
+        self.assertAlmostEqual(feedback["WHALE_VAULT"]["bias_adjustment"], 0.01)
+        self.assertEqual(feedback["PRESSURE_ANOMALY"]["successes"], 1)
+        self.assertAlmostEqual(feedback["PRESSURE_ANOMALY"]["bias_adjustment"], 0.01)
+
+    @patch('main.fetch_match_incidents')
+    def test_evaluate_concluded_matches_failure(self, mock_incidents):
+        import json
+        # Setup finished matches schedule
+        schedule_data = [
+            {
+                "id": 111,
+                "status": {"type": "finished"},
+                "homeScore": {"current": 0},
+                "awayScore": {"current": 2},
+                "homeTeam": {"name": "Team A"},
+                "awayTeam": {"name": "Team B"},
+                "tournament": {"name": "World Cup", "uniqueTournament": {"name": "World Cup"}}
+            },
+            {
+                "id": 222,
+                "status": {"type": "finished"},
+                "homeScore": {"current": 0},
+                "awayScore": {"current": 0},
+                "homeTeam": {"name": "Team C"},
+                "awayTeam": {"name": "Team D"},
+                "tournament": {"name": "World Cup", "uniqueTournament": {"name": "World Cup"}}
+            }
+        ]
+        with open(main.SCHEDULE_FILE, "w", encoding="utf-8") as f:
+            json.dump(schedule_data, f)
+            
+        # Setup sent alerts
+        # 111_WHALE_VAULT: predicted home (which lost 0-2) -> Failure
+        # 222_PRESSURE_ANOMALY: alert minute 40, no goals scored (0-0) -> Failure (evaluated immediately since score is 0-0)
+        sent_alerts = {
+            "111_WHALE_VAULT": {
+                "timestamp": "2026-06-13T00:00:00Z",
+                "evaluated": False,
+                "minute": 70,
+                "type": "WHALE_VAULT",
+                "predicted_winner": "home"
+            },
+            "222_PRESSURE_ANOMALY": {
+                "timestamp": "2026-06-13T00:00:00Z",
+                "evaluated": False,
+                "minute": 40,
+                "type": "PRESSURE_ANOMALY"
+            }
+        }
+        with open(main.SENT_ALERTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(sent_alerts, f)
+            
+        # Mock incidents should not even be called for 222 since score is 0-0,
+        # but let's make sure it returns empty if called
+        mock_incidents.return_value = []
+        
+        main.evaluate_concluded_matches()
+        
+        # Check sent alerts updated
+        with open(main.SENT_ALERTS_FILE, "r", encoding="utf-8") as f:
+            alerts_after = json.load(f)
+        self.assertTrue(alerts_after["111_WHALE_VAULT"]["evaluated"])
+        self.assertFalse(alerts_after["111_WHALE_VAULT"]["success"])
+        self.assertTrue(alerts_after["222_PRESSURE_ANOMALY"]["evaluated"])
+        self.assertFalse(alerts_after["222_PRESSURE_ANOMALY"]["success"])
+        
+        # Check feedback loop bias decreased
+        with open(engine.FEEDBACK_FILE, "r", encoding="utf-8") as f:
+            feedback = json.load(f)
+        self.assertEqual(feedback["WHALE_VAULT"]["failures"], 1)
+        self.assertAlmostEqual(feedback["WHALE_VAULT"]["bias_adjustment"], -0.02)
+        self.assertEqual(feedback["PRESSURE_ANOMALY"]["failures"], 1)
+        self.assertAlmostEqual(feedback["PRESSURE_ANOMALY"]["bias_adjustment"], -0.02)
 
 if __name__ == '__main__':
     unittest.main()

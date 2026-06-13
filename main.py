@@ -6,7 +6,7 @@ import logging
 import time as time_lib
 from datetime import datetime, timezone, timedelta
 from config import Config
-from engine import fetch_live_world_cup_matches, analyze_match_anomalies
+from engine import fetch_live_world_cup_matches, analyze_match_anomalies, FEEDBACK_FILE
 from bot import send_telegram_alert
 
 # Hook directly into OpenClaw's stdout logger
@@ -146,6 +146,149 @@ def check_active_windows(fixtures):
                 
     return today_fixtures, active_fixtures
 
+def fetch_match_incidents(event_id: int):
+    url = f"{Config.BASE_URL}/event/{event_id}/incidents"
+    headers = {
+        "X-RapidAPI-Key": Config.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": Config.RAPIDAPI_HOST
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            return response.json().get("incidents", [])
+        return []
+    except Exception as e:
+        logging.error(f"Error fetching incidents for event {event_id}: {str(e)}")
+        return []
+
+def evaluate_concluded_matches():
+    logging.info("Feedback Loop: Commencing concluded matches evaluation check...")
+    
+    if not os.path.exists(SCHEDULE_FILE):
+        return
+    try:
+        with open(SCHEDULE_FILE, "r", encoding="utf-8") as f:
+            fixtures = json.load(f)
+    except Exception as e:
+        logging.error(f"Error loading schedule for evaluation: {str(e)}")
+        return
+
+    sent_alerts = load_sent_alerts()
+    if not sent_alerts:
+        return
+
+    # Load feedback loop
+    feedback = {}
+    if os.path.exists(FEEDBACK_FILE):
+        try:
+            with open(FEEDBACK_FILE, "r", encoding="utf-8") as f:
+                feedback = json.load(f)
+        except Exception as e:
+            logging.error(f"Error loading feedback: {str(e)}")
+            
+    # Default initialization
+    for tier in ["WHALE_VAULT", "HIGH_YIELD", "PRESSURE_ANOMALY"]:
+        if tier not in feedback:
+            feedback[tier] = {"successes": 0, "failures": 0, "bias_adjustment": 0.0}
+
+    updated_alerts = False
+    updated_feedback = False
+
+    for match in fixtures:
+        match_id = match['id']
+        match_id_str = str(match_id)
+        
+        status_type = match.get('status', {}).get('type', '')
+        if status_type != 'finished':
+            continue
+            
+        home_score = match.get('homeScore', {}).get('current', 0)
+        away_score = match.get('awayScore', {}).get('current', 0)
+        
+        # Check alerts for this match
+        for alert_key, val in list(sent_alerts.items()):
+            if not alert_key.startswith(f"{match_id_str}_"):
+                continue
+                
+            # Normalize old string format to dict
+            if isinstance(val, str):
+                val = {
+                    "timestamp": val,
+                    "evaluated": False,
+                    "minute": 45,
+                    "type": alert_key.split('_', 1)[1]
+                }
+                sent_alerts[alert_key] = val
+                updated_alerts = True
+                
+            if val.get("evaluated", False):
+                continue
+                
+            alert_type = val.get("type")
+            alert_minute = val.get("minute", 0)
+            
+            success = False
+            evaluation_possible = True
+            
+            if alert_type == "WHALE_VAULT":
+                # Predicted winner
+                predicted = val.get("predicted_winner")
+                if predicted == "home" and home_score > away_score:
+                    success = True
+                elif predicted == "away" and away_score > home_score:
+                    success = True
+                else:
+                    success = False
+            elif alert_type in ["PRESSURE_ANOMALY", "HIGH_YIELD"]:
+                if home_score == 0 and away_score == 0:
+                    success = False
+                    evaluation_possible = True
+                else:
+                    incidents = fetch_match_incidents(match_id)
+                    if incidents:
+                        goal_scored = False
+                        for inc in incidents:
+                            if inc.get("incidentType") == "goal":
+                                inc_time = inc.get("time", 0)
+                                if inc_time > alert_minute:
+                                    goal_scored = True
+                                    break
+                        success = goal_scored
+                    else:
+                        evaluation_possible = False
+            else:
+                success = True
+                
+            if evaluation_possible:
+                tier_stats = feedback.get(alert_type)
+                if not tier_stats:
+                    feedback[alert_type] = {"successes": 0, "failures": 0, "bias_adjustment": 0.0}
+                    tier_stats = feedback[alert_type]
+                    
+                if success:
+                    tier_stats["successes"] += 1
+                    tier_stats["bias_adjustment"] = min(tier_stats["bias_adjustment"] + 0.01, 0.05)
+                    logging.info(f"Feedback Loop: SUCCESS for {alert_key}. Reward (+0.01 bias) applied.")
+                else:
+                    tier_stats["failures"] += 1
+                    tier_stats["bias_adjustment"] = max(tier_stats["bias_adjustment"] - 0.02, -0.10)
+                    logging.info(f"Feedback Loop: FAILURE for {alert_key}. Penalty (-0.02 bias) applied.")
+                    
+                val["evaluated"] = True
+                val["success"] = success
+                updated_alerts = True
+                updated_feedback = True
+
+    if updated_alerts:
+        save_sent_alerts(sent_alerts)
+    if updated_feedback:
+        try:
+            with open(FEEDBACK_FILE, "w", encoding="utf-8") as f:
+                json.dump(feedback, f, indent=4)
+            logging.info(f"Saved updated feedback state to {FEEDBACK_FILE}")
+        except Exception as e:
+            logging.error(f"Error saving feedback loop: {str(e)}")
+
 def run_pipeline():
     logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
     dry_run = "--dry-run" in sys.argv or os.getenv("DRY_RUN") == "True"
@@ -181,6 +324,8 @@ def run_pipeline():
     live_matches = fetch_live_world_cup_matches()
     if not live_matches:
         logging.info("No active high-variance match windows found at this checkpoint.")
+        # Perform evaluation on finished matches even if no matches are currently live
+        evaluate_concluded_matches()
         return
 
     logging.info(f"Found {len(live_matches)} live match(es). Analyzing for anomalies...")
@@ -231,39 +376,16 @@ def run_pipeline():
                     logging.info(f"Premium signal successfully pushed to VIP layer. Tier: {anomaly_type}")
                     
                     # Construct and send teaser to Free Channel
-                    if anomaly_type == "WHALE_VAULT":
-                        teaser_message = (
-                            "🔒 *[HIGH-CONFIDENCE ALGORITHMIC SIGNAL LOCKED]* 🔒\n\n"
-                            f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
-                            "📊 *Confidence Rating*: **94.2% Sure Win Parameters Match**\n\n"
-                            "🔥 This position is tailored specifically for heavy bankroll deployment. "
-                            "Because high-stake volume shifts market odds rapidly, the exact target is locked behind VIP.\n\n"
-                            "👉 [Unlock This Whale Vault Alert Instantly](https://t.me/mock_arbitrage_arena_premium)\n\n"
-                            "💰 *No VIP allocation left?* Secure a Risk-Free $200 Match Bet to offset line adjustments on this game via our verified partner:\n"
-                            f"▶️ [Claim Your High-Stakes SignUp Bonus Here]({Config.INCOME_ACCESS_LINK})"
-                        )
-                    elif anomaly_type == "HIGH_YIELD":
-                        teaser_message = (
-                            "🚀 *[MARKET MISPRICING ALERTS: OPEN]* 🚀\n\n"
-                            f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
-                            "⚡ *Anomaly Matrix*: High Premium Odds / Expected Goal Variance Detected.\n\n"
-                            "The public lines are lagging behind real-time on-field possession analytics by +18%.\n\n"
-                            "👇 *Capitalize on this premium underdog/draw shift instantly:* \n"
-                            "🔗 [Get Instant VIP Analytics Feed](https://t.me/mock_arbitrage_arena_premium)\n\n"
-                            "🎰 *Maximize Your Yield:* This bookie is currently offering boosted 4.50+ multipliers on this specific match phase window:\n"
-                            f"▶️ [Bet the Variance with a 100% Deposit Match]({Config.GAMBLING_ATTACK_LINK})"
-                        )
-                    else:
-                        teaser_message = (
-                            "🔒 *[PREMIUM MODEL MISMATCH DETECTED]* 🔒\n\n"
-                            f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
-                            f"⏱️ *Current Window*: Minute {elapsed}'\n"
-                            "📈 *Indicator Matrix*: High-Stake / Low-Risk Probability Arbitrage Node.\n\n"
-                            "⚠️ *Notice*: This signal has met the criteria for our maximum confidence thresholds. "
-                            "To prevent betting line collapse, the full position is restricted to verified subscribers.\n\n"
-                            "👇 *Unlock the real-time target and protect your bankroll instantly:* \n"
-                            "🔗 [Join The Premium Whale Vault Here](https://t.me/mock_arbitrage_arena_premium)"
-                        )
+                    teaser_message = (
+                        "🔒 *[PREMIUM MODEL MISMATCH DETECTED]* 🔒\n\n"
+                        f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
+                        f"⏱️ *Current Window*: Minute {elapsed}'\n"
+                        "📈 *Indicator Matrix*: High-Stake / Low-Risk Probability Arbitrage Node.\n\n"
+                        "⚠️ *Notice*: This signal has met the criteria for our maximum confidence thresholds. "
+                        "To prevent betting line collapse, the full position is restricted to verified subscribers.\n\n"
+                        "👇 *Unlock the real-time target and protect your bankroll instantly:* \n"
+                        "🔗 [Join The Premium Whale Vault Here](https://t.me/mock_arbitrage_arena_premium)"
+                    )
                     success_free = send_telegram_alert(teaser_message, is_premium=False)
                     success = success_premium or success_free
                 else:
@@ -271,13 +393,23 @@ def run_pipeline():
                     success = send_telegram_alert(anomaly['message'], is_premium=False)
                     
                 if success:
-                    sent_alerts[alert_key] = datetime.now(timezone.utc).isoformat()
+                    # Save sent alert with extra evaluation metadata
+                    sent_alerts[alert_key] = {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "evaluated": False,
+                        "minute": elapsed,
+                        "type": anomaly_type,
+                        "predicted_winner": "home" if match.get('homeScore', {}).get('current', 0) > match.get('awayScore', {}).get('current', 0) else "away"
+                    }
                     updated = True
             else:
                 logging.info(f"Duplicate alert prevented for {alert_key}")
                 
     if updated:
         save_sent_alerts(sent_alerts)
+
+    # Perform evaluation on finished matches at the end of the run
+    evaluate_concluded_matches()
 
 main = run_pipeline
 
