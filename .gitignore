@@ -6,6 +6,7 @@ __pycache__/
 check_time.py
 send_mock_alert.py
 simulate_usa_game.py
+send_invitation.py
 desktop.ini
 gemini
 gemini.cmd
@@ -13,3 +14,4 @@ gemini.ps1
 agent_memory.db
 feedback_loop.json
 landing_page/config.json
+
