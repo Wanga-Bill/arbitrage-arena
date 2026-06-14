@@ -13,6 +13,20 @@ class Config:
     TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "mock_arbitrage_arena_bot")
     WHOP_CHECKOUT_LINK = os.getenv("WHOP_CHECKOUT_LINK", "https://whop.com/checkout/mock_arbitrage_arena_vip")
     
+    # Safaricom Daraja API
+    SAFARICOM_DARAJA_CONSUMER_KEY = os.getenv("SAFARICOM_DARAJA_CONSUMER_KEY")
+    SAFARICOM_DARAJA_CONSUMER_SECRET = os.getenv("SAFARICOM_DARAJA_CONSUMER_SECRET")
+    SAFARICOM_SHORTCODE = os.getenv("SAFARICOM_SHORTCODE")
+    SAFARICOM_PASSKEY = os.getenv("SAFARICOM_PASSKEY")
+    SAFARICOM_CALLBACK_URL = os.getenv("SAFARICOM_CALLBACK_URL")
+    
+    # Telegram Bot Payments (Stripe/PayPal)
+    TELEGRAM_PAYMENT_PROVIDER_TOKEN = os.getenv("TELEGRAM_PAYMENT_PROVIDER_TOKEN")
+    
+    # CryptoPay API
+    CRYPTOPAY_API_KEY = os.getenv("CRYPTOPAY_API_KEY")
+    CRYPTOPAY_WEBHOOK_SECRET = os.getenv("CRYPTOPAY_WEBHOOK_SECRET")
+    
     BASE_URL = "https://sportapi7.p.rapidapi.com/api/v1"
     
     # Affiliate Trackers

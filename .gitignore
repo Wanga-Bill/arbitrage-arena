@@ -7,11 +7,13 @@ check_time.py
 send_mock_alert.py
 simulate_usa_game.py
 send_invitation.py
+test_payments.py
 desktop.ini
 gemini
 gemini.cmd
 gemini.ps1
 agent_memory.db
+database.db
 feedback_loop.json
 landing_page/config.json
 
