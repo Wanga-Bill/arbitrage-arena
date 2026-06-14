@@ -1,2 +1,5 @@
-requests==2.31.0
-python-dotenv==1.0.1
+python-telegram-bot>=20.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pytest>=7.4.0
+google-antigravity>=2.0.0
