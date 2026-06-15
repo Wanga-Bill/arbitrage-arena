@@ -1,0 +1,47 @@
+version: "3.7"
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: listmonk_db
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+    environment:
+      - POSTGRES_USER=listmonk
+      - POSTGRES_PASSWORD=L1stM0nk_db_5ecur3_2026!
+      - POSTGRES_DB=listmonk
+    volumes:
+      - listmonk_db_data:/var/lib/postgresql/data
+    networks:
+      - listmonk_network
+
+  app:
+    image: listmonk/listmonk:latest
+    container_name: listmonk_app
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - db
+    # Automatically runs database install scripts on initialization and handles structural migrations on update
+    command: [sh, -c, "./listmonk --install --idempotent --yes && ./listmonk --upgrade --yes && ./listmonk"]
+    environment:
+      - LISTMONK_app__address=0.0.0.0:9000
+      - LISTMONK_db__host=db
+      - LISTMONK_db__port=5432
+      - LISTMONK_db__user=listmonk
+      - LISTMONK_db__password=L1stM0nk_db_5ecur3_2026!
+      - LISTMONK_db__database=listmonk
+      - LISTMONK_db__ssl_mode=disable
+    volumes:
+      - ./uploads:/listmonk/uploads:rw
+    networks:
+      - listmonk_network
+
+volumes:
+  listmonk_db_data:
+
+networks:
+  listmonk_network:
