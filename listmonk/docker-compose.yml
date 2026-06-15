@@ -40,6 +40,16 @@ services:
     networks:
       - listmonk_network
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: listmonk_mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - listmonk_network
+
 volumes:
   listmonk_db_data:
 

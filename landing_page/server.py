@@ -115,6 +115,11 @@ def run_email_reminder_daemon():
     
     while True:
         try:
+            # Load fresh env vars in case they changed
+            api_url = os.getenv("LISTMONK_API_URL")
+            username = os.getenv("LISTMONK_USERNAME")
+            password = os.getenv("LISTMONK_PASSWORD")
+            
             # 1. Fetch active subscribers
             subscribers = []
             if os.path.exists(db_path):
@@ -206,6 +211,30 @@ def run_email_reminder_daemon():
                             )
                             with open(log_path, "a", encoding="utf-8") as lf:
                                 lf.write(log_entry)
+                                
+                            # Send via Listmonk transactional API
+                            if api_url and username and password:
+                                try:
+                                    import requests
+                                    tx_url = f"{api_url}/tx"
+                                    headers = {
+                                        "Authorization": f"token {username}:{password}",
+                                        "Content-Type": "application/json"
+                                    }
+                                    tx_payload = {
+                                        "template_id": 3,
+                                        "subscriber_email": email,
+                                        "subscriber_mode": "fallback",
+                                        "subject": "💅 Bestie, the agent cooked a new anomaly lock! No cap.",
+                                        "data": {
+                                            "message": msg
+                                        },
+                                        "content_type": "html"
+                                    }
+                                    tx_resp = requests.post(tx_url, json=tx_payload, headers=headers)
+                                    print(f"[Daemon] Listmonk tx send status for {email}: {tx_resp.status_code}")
+                                except Exception as le:
+                                    print(f"[Daemon Error] Failed to send transactional email to {email}: {le}")
                                 
                             print(f"[Daemon] Dispatched GenZ reminder to {email} for match: {home} vs {away}")
                             already_notified.add(alert_key)
