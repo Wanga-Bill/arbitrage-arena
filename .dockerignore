@@ -1,0 +1,11 @@
+.git
+.env
+__pycache__
+*.pyc
+*.db
+listmonk/
+node_modules/
+.idea/
+.vscode/
+*.log
+*sent_alerts.json
