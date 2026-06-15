@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(dotenv_path=os.path.join(workspace_dir, ".env"))
 
-PORT = 8001
+PORT = 8000
 
 class CustomHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
