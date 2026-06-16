@@ -300,7 +300,7 @@ def sync_smtp_settings():
 
 def run_server():
     # Validate environment configurations
-    Config.validate()
+    Config.validate(component="landing_page")
     
     # Sync SMTP settings at startup
     sync_smtp_settings()

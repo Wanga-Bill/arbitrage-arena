@@ -257,7 +257,7 @@ async def log_loop(event_filter, poll_interval: int = 2):
 
 async def main():
     # Validate environment configurations
-    Config.validate()
+    Config.validate(component="watcher")
     
     if not w3 or not contract:
         logging.error("Web3 provider or contract configurations are uninitialized. Check .env variables.")

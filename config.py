@@ -41,8 +41,8 @@ class Config:
     GAMBLING_ATTACK_LINK = os.getenv("YOUR_GAMBLING_ATTACK_AFFILIATE_LINK", "YOUR_GAMBLING_ATTACK_AFFILIATE_LINK")
 
     @classmethod
-    def validate(cls):
-        """Validates that all critical credentials are set and secure."""
+    def validate(cls, component="all"):
+        """Validates that all critical credentials are set and secure for a specific component."""
         # Compromised historic values (commit 02d5aec4)
         COMPROMISED_SECRETS = {
             "8857855755:AAF-YxPVBqJpv4PzUqfwaGbTpoKGLQ0Ra5w", # historic telegram bot token
@@ -56,16 +56,25 @@ class Config:
         }
         
         errors = []
+        required_vars = {}
         
-        # Check required credentials
-        required_vars = {
-            "RAPIDAPI_KEY": cls.RAPIDAPI_KEY,
-            "TELEGRAM_BOT_TOKEN": cls.TELEGRAM_BOT_TOKEN,
-            "LISTMONK_PASSWORD": cls.LISTMONK_PASSWORD,
-            "LISTMONK_DB_PASSWORD": cls.LISTMONK_DB_PASSWORD,
-            "LISTMONK_ADMIN_PASSWORD": cls.LISTMONK_ADMIN_PASSWORD,
-        }
-        
+        # 1. Define required variables by component
+        if component in ("all", "engine", "app"):
+            required_vars["RAPIDAPI_KEY"] = cls.RAPIDAPI_KEY
+            required_vars["TELEGRAM_BOT_TOKEN"] = cls.TELEGRAM_BOT_TOKEN
+            
+        if component in ("all", "app"):
+            required_vars["LISTMONK_PASSWORD"] = cls.LISTMONK_PASSWORD
+            required_vars["LISTMONK_DB_PASSWORD"] = cls.LISTMONK_DB_PASSWORD
+            required_vars["LISTMONK_ADMIN_PASSWORD"] = cls.LISTMONK_ADMIN_PASSWORD
+            
+        if component == "watcher":
+            required_vars["LISTMONK_PASSWORD"] = cls.LISTMONK_PASSWORD
+            
+        if component == "landing_page":
+            required_vars["LISTMONK_PASSWORD"] = cls.LISTMONK_PASSWORD
+
+        # 2. Check required credentials
         for name, value in required_vars.items():
             if not value:
                 errors.append(f"Required environment variable '{name}' is missing or empty.")
@@ -74,7 +83,7 @@ class Config:
             elif any(placeholder in str(value).lower() for placeholder in ["your_telegram_bot_token", "your_rapidapi_key", "your_product_id", "placeholder"]):
                 errors.append(f"Environment variable '{name}' contains a template placeholder: '{value}'")
         
-        # Check optional but critical if provided
+        # 3. Check optional but critical if provided (always checked)
         optional_vars = {
             "SAFARICOM_DARAJA_CONSUMER_KEY": cls.SAFARICOM_DARAJA_CONSUMER_KEY,
             "SAFARICOM_DARAJA_CONSUMER_SECRET": cls.SAFARICOM_DARAJA_CONSUMER_SECRET,
@@ -89,5 +98,5 @@ class Config:
                     errors.append(f"Optional environment variable '{name}' contains a template placeholder: '{value}'")
                     
         if errors:
-            raise ValueError("Configuration validation failed:\n" + "\n".join(f" - {err}" for err in errors))
+            raise ValueError(f"Configuration validation failed for component '{component}':\n" + "\n".join(f" - {err}" for err in errors))
 

@@ -425,7 +425,7 @@ def sync_smtp_settings():
 @app.on_event("startup")
 def startup_event():
     # Validate environment configurations
-    Config.validate()
+    Config.validate(component="app")
     
     # Sync SMTP settings and create API user
     # Note: If PostgreSQL is starting up in compose, psycopg2 might take a few seconds to connect.

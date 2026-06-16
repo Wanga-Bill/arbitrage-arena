@@ -397,7 +397,7 @@ def export_past_analysis():
 
 def run_pipeline():
     # Validate environment configurations
-    Config.validate()
+    Config.validate(component="engine")
     
     logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
     backtest_handler.initialize_memory_db()
