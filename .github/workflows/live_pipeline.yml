@@ -1,5 +1,5 @@
 name: Live Match Alert Pipeline
-
+# Secure secret binding verified
 on:
   schedule:
     # Runs every 15 minutes, 24/7.
