@@ -452,7 +452,7 @@ def startup_event():
     daemon_thread = threading.Thread(target=run_email_reminder_daemon, daemon=True)
     daemon_thread.start()
 
-    # Initialize Billing Ledger database table
+    # Initialize Billing Ledger database tables
     try:
         conn = sqlite3.connect(payment_engine.DB_PATH)
         cursor = conn.cursor()
@@ -467,11 +467,18 @@ def startup_event():
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS vip_subscriptions (
+                tg_user_id INTEGER PRIMARY KEY,
+                expires_at INTEGER NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('active', 'expired'))
+            )
+        ''')
         conn.commit()
         conn.close()
-        print("[DB Init] Billing ledger table initialized successfully.")
+        print("[DB Init] Billing ledger and subscription tables initialized successfully.")
     except Exception as dbe:
-        print(f"[DB Init Error] Failed to initialize billing ledger: {dbe}")
+        print(f"[DB Init Error] Failed to initialize databases: {dbe}")
 
 # Webhook endpoints for payments
 @app.post("/webhook/mpesa")

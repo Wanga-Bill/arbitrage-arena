@@ -218,8 +218,9 @@ def generate_cryptopay_invoice(amount: float, asset: str, tg_user_id: int) -> st
     return f"https://t.me/CryptoBot?start=err_{tg_user_id}"
 
 def complete_payment(invoice_id: str) -> bool:
-    """Marks payment as completed and sends a unique VIP invite link to the user."""
+    """Marks payment as completed, records/renews the subscription in DB, and sends invite link."""
     try:
+        import time as time_module
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT tg_user_id, amount, currency, gateway FROM billing_ledger WHERE invoice_id=?", (invoice_id,))
@@ -233,9 +234,43 @@ def complete_payment(invoice_id: str) -> bool:
         tg_user_id, amount, currency, gateway = row
         cursor.execute("UPDATE billing_ledger SET status='completed' WHERE invoice_id=?", (invoice_id,))
         conn.commit()
+        
+        # Calculate subscription plan duration in seconds
+        duration_seconds = 7 * 86400  # Default Weekly Pass (7 days)
+        if amount == 1.0:
+            duration_seconds = 5  # Mock 5-second pass for testing/simulation
+        elif currency.upper() == "KES":
+            if amount >= 3500.0:  # KES 4,000 Monthly Pass
+                duration_seconds = 30 * 86400
+        else:
+            if amount >= 25.0:    # USD 29.99 Monthly Pass
+                duration_seconds = 30 * 86400
+                
+        # Query existing subscription
+        cursor.execute("SELECT expires_at FROM vip_subscriptions WHERE tg_user_id=?", (tg_user_id,))
+        sub_row = cursor.fetchone()
+        
+        current_time = int(time_module.time())
+        if sub_row:
+            old_expires_at = sub_row[0]
+            if old_expires_at > current_time:
+                # Active subscription: extend it!
+                new_expires_at = old_expires_at + duration_seconds
+            else:
+                # Expired or inactive subscription: start from current time
+                new_expires_at = current_time + duration_seconds
+        else:
+            new_expires_at = current_time + duration_seconds
+            
+        cursor.execute(
+            "INSERT OR REPLACE INTO vip_subscriptions (tg_user_id, expires_at, status) VALUES (?, ?, 'active')",
+            (tg_user_id, new_expires_at)
+        )
+        conn.commit()
         conn.close()
         
         logging.info(f"Payment SUCCESS: User {tg_user_id} paid {amount:.2f} {currency} via {gateway}")
+        logging.info(f"Recorded/extended subscription for user {tg_user_id} to {datetime.fromtimestamp(new_expires_at).isoformat()}")
         
         # Generate Invite Link for VIP Premium Channel
         bot_token = Config.TELEGRAM_BOT_TOKEN

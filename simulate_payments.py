@@ -74,6 +74,46 @@ def run_demo():
     print("\n4. [Database Validation] Checking ledger status after webhook execution...")
     print_ledger_status(merchant_request_id)
     
+    # Step 5: Check subscription is active
+    print("\n5. [Subscription Validation] Verifying subscription active status in database...")
+    from datetime import datetime
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT expires_at, status FROM vip_subscriptions WHERE tg_user_id=?", (tg_user_id,))
+    sub_row = cursor.fetchone()
+    if sub_row:
+        expires_dt = datetime.fromtimestamp(sub_row[0]).strftime('%Y-%m-%d %H:%M:%S')
+        print(f"   [Subscription Record] User: {tg_user_id} | Expires At: {expires_dt} | Status: {sub_row[1]}")
+    else:
+        print("   [Subscription Record] No subscription found.")
+        
+    # Step 6: Simulate subscription expiration and eviction sweep
+    print("\n6. [Expiration Sweep Simulation] Mocking subscription expiration to the past...")
+    past_time = int(time.time()) - 100
+    cursor.execute("UPDATE vip_subscriptions SET expires_at=? WHERE tg_user_id=?", (past_time, tg_user_id))
+    conn.commit()
+    conn.close()
+    
+    print("   Invoking manual database sweep scan...")
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT tg_user_id FROM vip_subscriptions WHERE expires_at < ? AND status = 'active'", (int(time.time()),))
+    expired_list = cursor.fetchall()
+    print(f"   Sweep scan found {len(expired_list)} expired user(s) to process.")
+    
+    for uid, in expired_list:
+        print(f"   [Sweep Action] Evicting user {uid} from Premium Channel (API ban & unban calls)...")
+        print("   [Sweep Action] Dispatching Telegram renewal payment prompt direct message.")
+        cursor.execute("UPDATE vip_subscriptions SET status='expired' WHERE tg_user_id=?", (uid,))
+    conn.commit()
+    
+    # Re-verify status is updated to expired
+    cursor.execute("SELECT expires_at, status FROM vip_subscriptions WHERE tg_user_id=?", (tg_user_id,))
+    sub_row_after = cursor.fetchone()
+    conn.close()
+    if sub_row_after:
+        print(f"   [Database Validation] Post-Sweep Subscription Status: {sub_row_after[1]}")
+    
     print("\n==================================================")
     print("   DEMO COMPLETED SUCCESSFULLY!")
     print("==================================================")

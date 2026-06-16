@@ -123,6 +123,7 @@ def handle_telegram_updates():
                 {"command": "start", "description": "Welcome & VIP subscription plans"},
                 {"command": "upcoming", "description": "Show upcoming matches scheduled today"},
                 {"command": "pay", "description": "Pay: /pay <method> <amount> <param>"},
+                {"command": "status", "description": "Check subscription active status & duration"},
                 {"command": "help", "description": "Get payment support & instructions"}
             ]
         }
@@ -264,6 +265,55 @@ def process_single_update(update):
                     "text": f"⚠️ *Unknown gateway*: `{gateway}`. Choose `mpesa`, `card`, or `crypto`."
                 }, timeout=10)
 
+        elif text.startswith("/status"):
+            try:
+                conn = sqlite3.connect(payment_engine.DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT expires_at, status FROM vip_subscriptions WHERE tg_user_id=?", (chat_id,))
+                sub_row = cursor.fetchone()
+                conn.close()
+                
+                if sub_row:
+                    expires_at, status = sub_row
+                    from datetime import datetime
+                    expiry_time = datetime.fromtimestamp(expires_at).strftime('%Y-%m-%d %H:%M:%S')
+                    time_left = expires_at - int(time.time())
+                    
+                    if time_left > 0 and status == "active":
+                        hours = time_left // 3600
+                        days = hours // 24
+                        hours_rem = hours % 24
+                        time_left_str = f"{days} days, {hours_rem} hours" if days > 0 else f"{hours_rem} hours"
+                        if time_left < 3600:
+                            time_left_str = f"{time_left // 60} minutes"
+                            
+                        status_text = (
+                            "🟢 *VIP SUBSCRIPTION ACTIVE* 🟢\n\n"
+                            f"• *Expires At*: `{expiry_time} UTC`\n"
+                            f"• *Remaining Time*: `{time_left_str}`\n\n"
+                            "Thank you for being a premium member! You have active access to the VIP Premium channel."
+                        )
+                    else:
+                        status_text = (
+                            "🔴 *VIP SUBSCRIPTION EXPIRED / INACTIVE* 🔴\n\n"
+                            f"• *Last Expired*: `{expiry_time} UTC`\n\n"
+                            "To regain access to the VIP Premium channel, please choose a plan and pay again using the `/pay` command."
+                        )
+                else:
+                    status_text = (
+                        "⚪ *NO VIP SUBSCRIPTION FOUND* ⚪\n\n"
+                        "You do not have a registered VIP subscription. Start your membership using the `/pay` command!"
+                    )
+            except Exception as se:
+                logging.error(f"Error checking status for user {chat_id}: {se}")
+                status_text = "⚠️ *Failed to retrieve subscription status.* Please try again later."
+                
+            requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={
+                "chat_id": chat_id,
+                "text": status_text,
+                "parse_mode": "Markdown"
+            }, timeout=10)
+
         elif text.startswith("/mockpay"):
             # A developer shortcut command to mock pay/complete credit card invoices
             parts = text.split()
@@ -302,10 +352,113 @@ def process_single_update(update):
         except Exception as e:
             logging.error(f"Error answering pre-checkout query: {e}")
 
+def run_subscription_sweep_daemon():
+    """Sweeps database for expired VIP subscriptions and evicts users from Telegram channel."""
+    bot_token = Config.TELEGRAM_BOT_TOKEN
+    premium_channel = Config.PREMIUM_CHANNEL_ID
+    
+    if not bot_token or not premium_channel:
+        logging.error("[Sweep] BOT_TOKEN or PREMIUM_CHANNEL_ID not configured. Expirations sweep disabled.")
+        return
+        
+    logging.info("[Sweep] Background subscription sweep daemon initialized.")
+    while True:
+        try:
+            conn = sqlite3.connect(payment_engine.DB_PATH)
+            cursor = conn.cursor()
+            current_time = int(time.time())
+            
+            # Fetch all active subscriptions that have expired
+            cursor.execute(
+                "SELECT tg_user_id, expires_at FROM vip_subscriptions WHERE expires_at < ? AND status = 'active'",
+                (current_time,)
+            )
+            expired_users = cursor.fetchall()
+            
+            for tg_user_id, expires_at in expired_users:
+                logging.info(f"[Sweep] Subscription expired for user {tg_user_id} (expired at {expires_at}). Commencing Telegram eviction...")
+                
+                # 1. Ban member (kicks them out of channel)
+                ban_url = f"https://api.telegram.org/bot{bot_token}/banChatMember"
+                ban_payload = {
+                    "chat_id": premium_channel,
+                    "user_id": tg_user_id
+                }
+                
+                ban_ok = False
+                try:
+                    resp = requests.post(ban_url, json=ban_payload, timeout=10)
+                    resp_json = resp.json()
+                    if resp.status_code == 200 and resp_json.get("ok"):
+                        logging.info(f"[Sweep] Successfully banned/kicked user {tg_user_id} from channel {premium_channel}")
+                        ban_ok = True
+                    else:
+                        logging.error(f"[Sweep] Failed to ban/kick user {tg_user_id}: {resp_json.get('description')}")
+                except Exception as ban_err:
+                    logging.error(f"[Sweep] Exception during ban for user {tg_user_id}: {ban_err}")
+                
+                # 2. Unban member (allows them to rejoin later with a new invite link)
+                if ban_ok:
+                    unban_url = f"https://api.telegram.org/bot{bot_token}/unbanChatMember"
+                    unban_payload = {
+                        "chat_id": premium_channel,
+                        "user_id": tg_user_id,
+                        "only_if_banned": False
+                    }
+                    try:
+                        resp = requests.post(unban_url, json=unban_payload, timeout=10)
+                        resp_json = resp.json()
+                        if resp.status_code == 200 and resp_json.get("ok"):
+                            logging.info(f"[Sweep] Successfully unbanned user {tg_user_id} so they can rejoin in future.")
+                        else:
+                            logging.error(f"[Sweep] Failed to unban user {tg_user_id}: {resp_json.get('description')}")
+                    except Exception as unban_err:
+                        logging.error(f"[Sweep] Exception during unban for user {tg_user_id}: {unban_err}")
+                
+                # 3. Update database status to expired
+                cursor.execute(
+                    "UPDATE vip_subscriptions SET status = 'expired' WHERE tg_user_id = ?",
+                    (tg_user_id,)
+                )
+                conn.commit()
+                
+                # 4. Notify user about expiration & prompt to renew
+                prompt_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                prompt_text = (
+                    "🔴 *YOUR VIP PREMIUM ACCESS HAS EXPIRED!* 🔴\n\n"
+                    "Your Weekly or Monthly Pass has reached its end, and you have been removed from the VIP Channel.\n\n"
+                    "🛒 *To rejoin and get continuous live anomaly alerts, renew your pass now:*\n"
+                    "• *M-Pesa STK Push*:\n"
+                    "  `/pay mpesa <amount_in_kes> <phone_number>`\n"
+                    "• *Credit Cards / PayPal*:\n"
+                    "  `/pay card <amount_in_usd> <currency>`\n"
+                    "• *Crypto*:\n"
+                    "  `/pay crypto <amount_in_usd> <asset>`\n\n"
+                    "Use `/status` to check your membership status anytime."
+                )
+                try:
+                    requests.post(prompt_url, json={
+                        "chat_id": tg_user_id,
+                        "text": prompt_text,
+                        "parse_mode": "Markdown"
+                    }, timeout=10)
+                except Exception as msg_err:
+                    logging.error(f"[Sweep] Failed to send expiration notice to {tg_user_id}: {msg_err}")
+                    
+            conn.close()
+        except Exception as e:
+            logging.error(f"[Sweep] Error in sweep iteration: {e}")
+            
+        time.sleep(10)
+
 def main():
     # Start Webhook listener thread
     webhook_thread = threading.Thread(target=run_webhook_server, daemon=True)
     webhook_thread.start()
+    
+    # Start subscription expiration sweep thread
+    sweep_thread = threading.Thread(target=run_subscription_sweep_daemon, daemon=True)
+    sweep_thread.start()
     
     # Start Bot Updates long-polling loop
     handle_telegram_updates()
