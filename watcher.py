@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # Load workspace configurations
 workspace_dir = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(dotenv_path=os.path.join(workspace_dir, ".env"))
+from config import Config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -256,6 +256,9 @@ async def log_loop(event_filter, poll_interval: int = 2):
         await asyncio.sleep(poll_interval)
 
 async def main():
+    # Validate environment configurations
+    Config.validate()
+    
     if not w3 or not contract:
         logging.error("Web3 provider or contract configurations are uninitialized. Check .env variables.")
         # Start only the expiration cleanup loop if RPC is unconfigured to keep local test systems running

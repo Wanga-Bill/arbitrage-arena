@@ -559,6 +559,493 @@
             color: #5d5a8a;
             font-size: 0.85rem;
         }
+
+        /* Performance Ledger styling */
+        .ledger-section {
+            margin-bottom: 4rem;
+            padding-top: 4rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ledger-title {
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .ledger-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .ledger-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .ledger-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        .ledger-card:hover {
+            border-color: rgba(255, 0, 128, 0.2);
+        }
+
+        .ledger-val {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff, #dcdbfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .ledger-val.positive {
+            background: linear-gradient(135deg, #2ed573, #7bed9f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .ledger-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* Mockup past matches styles */
+        .telegram-alert {
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            text-align: left;
+        }
+
+        .telegram-alert.success {
+            border-left-color: #2ed573;
+            background: rgba(46, 213, 115, 0.03);
+        }
+
+        .telegram-alert.failed {
+            border-left-color: var(--accent-pink);
+            background: rgba(255, 0, 128, 0.03);
+        }
+
+        .telegram-alert.pending {
+            border-left-color: var(--accent-gold);
+            background: rgba(241, 196, 15, 0.03);
+        }
+
+        .alert-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+        }
+
+        .alert-badge {
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .alert-badge.success { color: #2ed573; }
+        .alert-badge.failed { color: var(--accent-pink); }
+        .alert-badge.pending { color: var(--accent-gold); }
+
+        .alert-match {
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.2rem;
+        }
+
+        .alert-details {
+            font-size: 0.8rem;
+            color: #dcdbfa;
+        }
+
+        /* Radar Section styling */
+        .radar-section {
+            margin-bottom: 5rem;
+            padding-top: 4rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .radar-title {
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .radar-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .radar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .radar-loading {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-pink);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Radar Card */
+        .radar-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .radar-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 0, 128, 0.25);
+            box-shadow: 0 10px 30px rgba(121, 40, 202, 0.1);
+        }
+
+        .radar-card.live-match {
+            border-color: rgba(255, 0, 128, 0.3);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 0, 128, 0.01) 100%);
+        }
+
+        .radar-card.live-match::before {
+            content: '?? MONITORING LIVE';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: var(--accent-pink);
+            color: #ffffff;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+            animation: pulse 2s infinite;
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .match-tournament {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            max-width: 70%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .match-status {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }
+
+        .status-notstarted {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .status-live {
+            background: rgba(255, 0, 128, 0.1);
+            color: var(--accent-pink);
+        }
+
+        .status-finished {
+            background: rgba(46, 213, 115, 0.1);
+            color: #2ed573;
+        }
+
+        .match-teams {
+            margin-bottom: 1.25rem;
+        }
+
+        .team-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 600;
+            padding: 0.2rem 0;
+        }
+
+        .team-row span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .team-score {
+            font-weight: 800;
+            color: #ffffff;
+            font-size: 1.25rem;
+        }
+
+        .match-footer {
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .match-time {
+            color: #dcdbfa;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .match-action-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            padding: 0.35rem 0.8rem;
+            border-radius: 8px;
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .match-action-btn:hover {
+            background: var(--accent-pink);
+            border-color: var(--accent-pink);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(255, 0, 128, 0.3);
+        }
+
+        .live-match .match-action-btn {
+            background: var(--primary-glow);
+            border: none;
+            color: #ffffff;
+        }
+
+        .live-match .match-action-btn:hover {
+            box-shadow: 0 4px 12px rgba(255, 0, 128, 0.4);
+            filter: brightness(1.1);
+        }
+
+        /* GenZ Preference Modal styling */
+        .pref-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(11, 7, 30, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pref-modal-content {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 0, 128, 0.25);
+            box-shadow: 0 0 30px rgba(255, 0, 128, 0.2);
+            border-radius: 28px;
+            padding: 3rem 2rem;
+            max-width: 550px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin: auto;
+        }
+
+        @keyframes modalPop {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .pref-modal-close {
+            position: absolute;
+            top: 1.2rem;
+            right: 1.5rem;
+            font-size: 2rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .pref-modal-close:hover {
+            color: var(--accent-pink);
+        }
+
+        .pref-modal-title {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ff0080, #7928ca);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+        }
+
+        .pref-modal-desc {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .pref-freq-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 480px) {
+            .pref-freq-options {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pref-freq-card {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .pref-freq-card:hover {
+            border-color: rgba(255, 0, 128, 0.2);
+            background: rgba(255, 255, 255, 0.02);
+            transform: translateY(-2px);
+        }
+
+        .pref-freq-card.active {
+            border-color: var(--accent-pink);
+            background: rgba(255, 0, 128, 0.05);
+            box-shadow: 0 0 15px rgba(255, 0, 128, 0.15);
+        }
+
+        .freq-emoji {
+            font-size: 1.75rem;
+        }
+
+        .freq-title {
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .freq-sub {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .pref-save-btn {
+            background: var(--primary-glow);
+            color: #ffffff;
+            border: none;
+            padding: 0.9rem 2.5rem;
+            border-radius: 14px;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.2);
+        }
+
+        .pref-save-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255, 0, 128, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -604,6 +1091,47 @@
                 </div>
             </div>
 
+        </section>
+
+        <!-- Agent Performance Ledger -->
+        <section class="ledger-section">
+            <h2 class="ledger-title">?? Agent Performance Ledger</h2>
+            <p class="ledger-subtitle">Verified historical stats and cumulative profit tracking computed directly from SQLite transaction logs.</p>
+            <div class="ledger-grid">
+                <div class="ledger-card">
+                    <div class="ledger-val positive" id="ledgerWinRate">--%</div>
+                    <div class="ledger-label">Win Rate</div>
+                </div>
+                <div class="ledger-card">
+                    <div class="ledger-val positive" id="ledgerProfitUsd">+$0.00</div>
+                    <div class="ledger-label">Profit (USD)</div>
+                </div>
+                <div class="ledger-card">
+                    <div class="ledger-val positive" id="ledgerProfitKes">KES +0</div>
+                    <div class="ledger-label">Profit (KES)</div>
+                </div>
+                <div class="ledger-card">
+                    <div class="ledger-val" id="ledgerTotal">--</div>
+                    <div class="ledger-label">Alerts Graded</div>
+                </div>
+                <div class="ledger-card">
+                    <div class="ledger-val" id="ledgerBrier">0.0000</div>
+                    <div class="ledger-label">Brier Calibration</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live & Upcoming Match Radar -->
+        <section class="radar-section">
+            <h2 class="radar-title">?? Live & Upcoming Match Radar</h2>
+            <p class="radar-subtitle">Real-time scheduling and analytical tracking. The anomaly detection engine monitors active fixtures 24/7.</p>
+            <div class="radar-grid" id="radarGrid">
+                <!-- Loaded dynamically -->
+                <div class="radar-loading">
+                    <div class="spinner"></div>
+                    <p>Scanning global scheduled fixtures...</p>
+                </div>
+            </div>
         </section>
 
         <!-- Channels Grid -->
@@ -776,6 +1304,9 @@
                     return response.json();
                 })
                 .then(config => {
+                    if (config.bot_username) {
+                        botUsername = config.bot_username;
+                    }
                     if (config.free_channel_link) {
                         const freeBtn = document.getElementById('btn-free');
                         if (freeBtn) freeBtn.href = config.free_channel_link;
@@ -787,11 +1318,60 @@
                         if (monthlyBtn) monthlyBtn.href = config.whop_checkout_link;
                     }
                     console.log('Billing checkout links loaded dynamically:', config);
+                    
+                    // Initialize loaders
+                    loadPastAnalysis();
+                    setInterval(loadPastAnalysis, 30000); // Poll past analysis ledger every 30s
+                    
+                    setTimeout(() => {
+                        loadMatchRadar();
+                        setInterval(loadMatchRadar, 15000); // Poll match radar every 15s
+                    }, 500);
+                    
+                    // Rotate mockup alerts feed from past matches
+                    setInterval(addSimulatedAlert, 6000);
                 })
                 .catch(err => {
                     console.warn(err.message);
+                    loadPastAnalysis();
+                    loadMatchRadar();
+                    setInterval(loadMatchRadar, 15000);
+                    setInterval(addSimulatedAlert, 6000);
                 });
         });
     </script>
+
+    <!-- GenZ Preferences Modal -->
+    <div id="prefModal" class="pref-modal">
+        <div class="pref-modal-content">
+            <span class="pref-modal-close" onclick="closePrefModal()">&times;</span>
+            <div style="font-size: 3rem; margin-bottom: 1rem;">??????</div>
+            <h3 class="pref-modal-title">YOU'RE IN, BESTIE! ??</h3>
+            <p class="pref-modal-desc">No cap, we will spam you with high-yield value anomalies so you can print KES/USD. Choose your alert frequency below to let the agent cook:</p>
+            
+            <div class="pref-freq-options">
+                <div class="pref-freq-card active" id="freqOption3" onclick="setFreqOption(3)">
+                    <span class="freq-emoji">???</span>
+                    <span class="freq-title">Spicy Mode</span>
+                    <span class="freq-sub">Every 3 Hours</span>
+                </div>
+                <div class="pref-freq-card" id="freqOption24" onclick="setFreqOption(24)">
+                    <span class="freq-emoji">?</span>
+                    <span class="freq-title">Daily Digest</span>
+                    <span class="freq-sub">Every 24 Hours</span>
+                </div>
+                <div class="pref-freq-card" id="freqOption168" onclick="setFreqOption(168)">
+                    <span class="freq-emoji">??</span>
+                    <span class="freq-title">Boomer Mode</span>
+                    <span class="freq-sub">Once a Week</span>
+                </div>
+            </div>
+            
+            <button class="pref-save-btn" onclick="saveUserPreferences()">Save & Lock It In ?</button>
+            <div id="prefSaveSuccess" style="display:none; color:#2ed573; font-weight:700; margin-top:1rem; font-size:0.95rem;">
+                ? Preferences updated! Checking schedule...
+            </div>
+        </div>
+    </div>
 </body>
 </html>

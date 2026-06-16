@@ -53,6 +53,16 @@ def fetch_and_save_schedule():
         with open(SCHEDULE_FILE, "w", encoding="utf-8") as f:
             json.dump(events, f, indent=4)
         logging.info(f"Successfully cached {len(events)} events to {SCHEDULE_FILE}")
+        
+        # Also copy/write to landing_page/schedule.json for the frontend
+        landing_page_schedule = os.path.join(os.path.dirname(os.path.abspath(__file__)), "landing_page", "schedule.json")
+        try:
+            with open(landing_page_schedule, "w", encoding="utf-8") as f:
+                json.dump(events, f, indent=4)
+            logging.info(f"Successfully cached copy of schedule to {landing_page_schedule}")
+        except Exception as copy_err:
+            logging.error(f"Failed to copy schedule to landing page: {copy_err}")
+            
         return events
     except Exception as e:
         logging.error(f"Error fetching/saving schedule: {str(e)}")
@@ -69,6 +79,16 @@ def load_schedule():
             cache_date = datetime.fromtimestamp(mtime, tz=timezone.utc).strftime("%Y-%m-%d")
             today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             if cache_date == today_str:
+                # Ensure it's copied to landing_page if missing
+                landing_page_schedule = os.path.join(os.path.dirname(os.path.abspath(__file__)), "landing_page", "schedule.json")
+                if not os.path.exists(landing_page_schedule):
+                    try:
+                        import shutil
+                        shutil.copy2(SCHEDULE_FILE, landing_page_schedule)
+                        logging.info("Copied existing daily schedule to landing page.")
+                    except Exception as copy_err:
+                        logging.error(f"Error copying existing schedule to landing page: {copy_err}")
+                
                 with open(SCHEDULE_FILE, "r", encoding="utf-8") as f:
                     return json.load(f)
             else:
@@ -115,19 +135,22 @@ def check_active_windows(fixtures):
     active_fixtures = []
     
     for item in fixtures:
-        # Filter for World Cup matches
         tournament_name = item.get("tournament", {}).get("name", "").lower()
         unique_tournament_name = item.get("tournament", {}).get("uniqueTournament", {}).get("name", "").lower()
         
-        is_world_cup = (
-            "world cup" in tournament_name or
-            "world cup" in unique_tournament_name or
-            "world championship" in tournament_name or
-            "world championship" in unique_tournament_name or
-            "worldcup" in tournament_name or
-            "worldcup" in unique_tournament_name
-        )
-        if not is_world_cup:
+        target_tournaments = [
+            "world cup", "world championship", "worldcup",
+            "euro", "copa america", "champions league", "europa league",
+            "premier league", "la liga", "la-liga", "laliga", "serie a", "bundesliga",
+            "ligue 1", "eredivisie", "primeira liga", "mls", "major league soccer",
+            "copa libertadores", "liga mx", "super lig", "pro league", "championship",
+            "fa cup", "copa del rey", "coppa italia", "dfb pokal", "coupe de france",
+            "brasileirao", "liga profesional", "k league", "j1 league", "a-league",
+            "african cup of nations", "afcon", "asian cup"
+        ]
+        
+        is_target_league = any(t in tournament_name or t in unique_tournament_name for t in target_tournaments)
+        if not is_target_league:
             continue
             
         ts = item.get("startTimestamp")
@@ -298,9 +321,87 @@ def evaluate_concluded_matches():
         except Exception as e:
             logging.error(f"Error saving feedback loop: {str(e)}")
 
+def export_past_analysis():
+    import sqlite3
+    db_path = "agent_memory.db"
+    backtest_handler.initialize_memory_db()
+    if not os.path.exists(db_path):
+        return
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT fixture_id, match_name, calculated_prob, trigger_type, outcome, current_weight FROM historical_logs ORDER BY rowid DESC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        # Calculate metrics
+        evaluated_rows = [r for r in rows if r[4] != -1]
+        total_evaluated = len(evaluated_rows)
+        successes = len([r for r in evaluated_rows if r[4] == 1])
+        failures = len([r for r in evaluated_rows if r[4] == 0])
+        win_rate = (successes / total_evaluated * 100) if total_evaluated > 0 else 0.0
+        
+        squared_errors = []
+        for r in evaluated_rows:
+            squared_errors.append((r[2] - r[4])**2)
+        brier_score = (sum(squared_errors) / len(squared_errors)) if len(squared_errors) > 0 else 0.0
+        
+        # Calculate profit units: +0.5 for success, -1.0 for failure
+        profit_units = sum([0.5 if r[4] == 1 else -1.0 for r in evaluated_rows])
+        profit_usd = profit_units * 100.0
+        profit_kes = profit_units * 13000.0
+        
+        past_matches = []
+        for r in rows:
+            prob_percent = r[2]
+            if prob_percent <= 1.0:
+                prob_percent = prob_percent * 100
+                
+            past_matches.append({
+                "fixture_id": r[0],
+                "match_name": r[1],
+                "calculated_prob": round(prob_percent, 1),
+                "trigger_type": r[3].replace("_", " "),
+                "outcome": r[4], # -1 = pending, 1 = success, 0 = failure
+                "current_weight": round(r[5], 2)
+            })
+            
+        # Get latest weights from database
+        weight_whale = backtest_handler.get_current_weight("WHALE_VAULT")
+        weight_high_yield = backtest_handler.get_current_weight("HIGH_YIELD")
+        weight_pressure = backtest_handler.get_current_weight("PRESSURE_ANOMALY")
+
+        analysis_data = {
+            "total_evaluated": total_evaluated,
+            "successes": successes,
+            "failures": failures,
+            "win_rate": round(win_rate, 1),
+            "brier_score": round(brier_score, 4),
+            "profit_units": round(profit_units, 1),
+            "profit_usd": f"${profit_usd:+,.2f}" if profit_usd != 0 else "$0.00",
+            "profit_kes": f"KES {profit_kes:+,.0f}" if profit_kes != 0 else "KES 0",
+            "weights": {
+                "WHALE_VAULT": round(weight_whale, 2),
+                "HIGH_YIELD": round(weight_high_yield, 2),
+                "PRESSURE_ANOMALY": round(weight_pressure, 2)
+            },
+            "past_matches": past_matches
+        }
+        
+        out_path = os.path.join("landing_page", "past_analysis.json")
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(analysis_data, f, indent=4)
+        logging.info(f"Successfully exported past analysis data to {out_path}")
+    except Exception as e:
+        logging.error(f"Error exporting past analysis: {e}")
+
 def run_pipeline():
+    # Validate environment configurations
+    Config.validate()
+    
     logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
     backtest_handler.initialize_memory_db()
+    export_past_analysis()
     
     # Fetch bot username dynamically if not configured explicitly
     if not Config.TELEGRAM_BOT_USERNAME or Config.TELEGRAM_BOT_USERNAME == "mock_arbitrage_arena_bot":
@@ -317,10 +418,33 @@ def run_pipeline():
 
     # Write config.json for the landing page
     try:
+        free_channel_link = "https://t.me/mock_arbitrage_arena_free"
+        if Config.FREE_CHANNEL_ID:
+            try:
+                url = f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/getChat"
+                resp = requests.post(url, json={"chat_id": Config.FREE_CHANNEL_ID}, timeout=5)
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    if res_json.get("ok"):
+                        chat_data = res_json.get("result", {})
+                        username = chat_data.get("username")
+                        if username:
+                            free_channel_link = f"https://t.me/{username}"
+                        else:
+                            invite_link = chat_data.get("invite_link")
+                            if invite_link:
+                                free_channel_link = invite_link
+            except Exception as e:
+                logging.error(f"Error fetching free channel link from Telegram: {e}")
+
+        whop_link = Config.WHOP_CHECKOUT_LINK
+        if whop_link and ("mock" in whop_link.lower()) and Config.TELEGRAM_BOT_USERNAME:
+            whop_link = f"https://t.me/{Config.TELEGRAM_BOT_USERNAME}"
+
         config_data = {
             "bot_username": Config.TELEGRAM_BOT_USERNAME,
-            "free_channel_link": "https://t.me/mock_arbitrage_arena_free",
-            "whop_checkout_link": Config.WHOP_CHECKOUT_LINK
+            "free_channel_link": free_channel_link,
+            "whop_checkout_link": whop_link
         }
         config_path = os.path.join("landing_page", "config.json")
         with open(config_path, "w", encoding="utf-8") as f:
@@ -466,6 +590,7 @@ def run_pipeline():
 
     # Perform evaluation on finished matches at the end of the run
     evaluate_concluded_matches()
+    export_past_analysis()
 
 main = run_pipeline
 

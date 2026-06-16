@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 
 # Load env variables
 workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(dotenv_path=os.path.join(workspace_dir, ".env"))
+sys.path.append(workspace_dir)
+from config import Config
 
 PORT = 8000
 
@@ -244,7 +245,66 @@ def run_email_reminder_daemon():
             
         time.sleep(10) # Loop daemon every 10 seconds for real-time validation
 
+def sync_smtp_settings():
+    smtp_host = os.getenv("SMTP_HOST", "mailpit")
+    smtp_port = os.getenv("SMTP_PORT", "1025")
+    smtp_username = os.getenv("SMTP_USERNAME", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    smtp_tls_type = os.getenv("SMTP_TLS_TYPE", "None")
+    from_email = os.getenv("SMTP_FROM_EMAIL", "Arbitrage Arena <arbitragearena@xyz>")
+    
+    import subprocess
+    print(f"[SMTP Sync] Syncing SMTP settings to database: {smtp_host}:{smtp_port}...")
+    
+    smtp_cfg = [{
+        "host": smtp_host,
+        "port": int(smtp_port),
+        "enabled": True,
+        "username": smtp_username,
+        "password": smtp_password,
+        "tls_type": smtp_tls_type,
+        "max_conns": 10,
+        "idle_timeout": "15s",
+        "wait_timeout": "5s",
+        "auth_protocol": "login" if smtp_username else "",
+        "email_headers": [],
+        "hello_hostname": "",
+        "max_msg_retries": 2,
+        "tls_skip_verify": True if smtp_host == "mailpit" else False
+    }]
+    
+    smtp_json = json.dumps(smtp_cfg)
+    escaped_from = json.dumps(from_email).replace("'", "''")
+    escaped_smtp = smtp_json.replace("'", "''")
+    
+    sql = f"""
+    UPDATE settings SET value = '{escaped_from}' WHERE key = 'app.from_email';
+    UPDATE settings SET value = '{escaped_smtp}' WHERE key = 'smtp';
+    """
+    
+    try:
+        subprocess.run(
+            ["docker", "exec", "-i", "listmonk_db", "psql", "-U", "listmonk", "-d", "listmonk"],
+            input=sql,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        print("[SMTP Sync] Database updated successfully.")
+        
+        # Trigger Listmonk container restart to apply SMTP configurations
+        subprocess.run(["docker", "compose", "restart", "app"], cwd=os.path.join(workspace_dir, "listmonk"), capture_output=True)
+        print("[SMTP Sync] Restarted Listmonk app service to apply configs.")
+    except Exception as e:
+        print(f"[SMTP Sync Error] Failed to update settings in database: {e}")
+
 def run_server():
+    # Validate environment configurations
+    Config.validate()
+    
+    # Sync SMTP settings at startup
+    sync_smtp_settings()
+
     # Start Email Reminder Daemon Thread
     daemon_thread = threading.Thread(target=run_email_reminder_daemon, daemon=True)
     daemon_thread.start()
@@ -255,3 +315,4 @@ def run_server():
 
 if __name__ == "__main__":
     run_server()
+

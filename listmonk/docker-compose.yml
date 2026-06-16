@@ -10,7 +10,7 @@ services:
         max-size: "10m"
     environment:
       - POSTGRES_USER=listmonk
-      - POSTGRES_PASSWORD=L1stM0nk_db_5ecur3_2026!
+      - POSTGRES_PASSWORD=${LISTMONK_DB_PASSWORD}
       - POSTGRES_DB=listmonk
     volumes:
       - listmonk_db_data:/var/lib/postgresql/data
@@ -32,7 +32,7 @@ services:
       - LISTMONK_db__host=db
       - LISTMONK_db__port=5432
       - LISTMONK_db__user=listmonk
-      - LISTMONK_db__password=L1stM0nk_db_5ecur3_2026!
+      - LISTMONK_db__password=${LISTMONK_DB_PASSWORD}
       - LISTMONK_db__database=listmonk
       - LISTMONK_db__ssl_mode=disable
     volumes:

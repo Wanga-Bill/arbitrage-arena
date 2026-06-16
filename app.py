@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 # Load env variables from workspace root
 workspace_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(dotenv_path=os.path.join(workspace_dir, ".env"))
+from config import Config
 
 app = FastAPI(title="Arbitrage Arena Web Engine")
 
@@ -328,7 +329,7 @@ def sync_smtp_settings():
     db_host = os.getenv("LISTMONK_DB_HOST", "listmonk_db" if in_docker else "localhost")
     db_port = os.getenv("LISTMONK_DB_PORT", "5432")
     db_user = os.getenv("LISTMONK_DB_USER", "arena_admin")
-    db_pass = os.getenv("LISTMONK_DB_PASSWORD", "ArenaAdmin_db_secure_2026!")
+    db_pass = os.getenv("LISTMONK_DB_PASSWORD")
     db_name = os.getenv("LISTMONK_DB_DATABASE", "arena_mailing_db")
     
     smtp_host = os.getenv("SMTP_HOST", "listmonk_mailpit" if in_docker else "localhost")
@@ -423,6 +424,9 @@ def sync_smtp_settings():
 
 @app.on_event("startup")
 def startup_event():
+    # Validate environment configurations
+    Config.validate()
+    
     # Sync SMTP settings and create API user
     # Note: If PostgreSQL is starting up in compose, psycopg2 might take a few seconds to connect.
     # We run it in a short background initialization loop to prevent blocking FastAPI startup.

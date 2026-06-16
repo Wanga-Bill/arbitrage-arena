@@ -115,6 +115,22 @@ def handle_telegram_updates():
         logging.error("TELEGRAM_BOT_TOKEN missing. Bot command listener disabled.")
         return
         
+    # Register bot commands menu dynamically
+    try:
+        commands_url = f"https://api.telegram.org/bot{token}/setMyCommands"
+        commands_payload = {
+            "commands": [
+                {"command": "start", "description": "Welcome & VIP subscription plans"},
+                {"command": "upcoming", "description": "Show upcoming matches scheduled today"},
+                {"command": "pay", "description": "Pay: /pay <method> <amount> <param>"},
+                {"command": "help", "description": "Get payment support & instructions"}
+            ]
+        }
+        resp = requests.post(commands_url, json=commands_payload, timeout=10)
+        logging.info(f"Set bot commands menu: {resp.json()}")
+    except Exception as cmd_err:
+        logging.error(f"Error setting bot commands: {cmd_err}")
+        
     logging.info("Starting Telegram Bot updates polling command listener...")
     offset = 0
     

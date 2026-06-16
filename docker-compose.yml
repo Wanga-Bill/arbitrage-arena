@@ -18,7 +18,7 @@ services:
       - LISTMONK_DB_HOST=listmonk_db
       - LISTMONK_DB_PORT=5432
       - LISTMONK_DB_USER=arena_admin
-      - LISTMONK_DB_PASSWORD=${LISTMONK_DB_PASSWORD:-ArenaAdmin_db_secure_2026!}
+      - LISTMONK_DB_PASSWORD=${LISTMONK_DB_PASSWORD}
       - LISTMONK_DB_DATABASE=arena_mailing_db
       - SMTP_HOST=listmonk_mailpit
       - SMTP_PORT=1025
@@ -41,11 +41,11 @@ services:
       - LISTMONK_db__host=listmonk_db
       - LISTMONK_db__port=5432
       - LISTMONK_db__user=arena_admin
-      - LISTMONK_db__password=${LISTMONK_DB_PASSWORD:-ArenaAdmin_db_secure_2026!}
+      - LISTMONK_db__password=${LISTMONK_DB_PASSWORD}
       - LISTMONK_db__database=arena_mailing_db
       - LISTMONK_db__ssl_mode=disable
       - LISTMONK_ADMIN_USER=listmonk_admin
-      - LISTMONK_ADMIN_PASSWORD=L1stM0nk_admin_5ecur3_2026!
+      - LISTMONK_ADMIN_PASSWORD=${LISTMONK_ADMIN_PASSWORD}
     volumes:
       - ./listmonk/uploads:/listmonk/uploads:rw
     networks:
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=arena_admin
-      - POSTGRES_PASSWORD=${LISTMONK_DB_PASSWORD:-ArenaAdmin_db_secure_2026!}
+      - POSTGRES_PASSWORD=${LISTMONK_DB_PASSWORD}
       - POSTGRES_DB=arena_mailing_db
     volumes:
       - arena_postgres_storage:/var/lib/postgresql/data

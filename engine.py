@@ -40,15 +40,19 @@ def fetch_live_world_cup_matches():
             tournament_name = e.get("tournament", {}).get("name", "").lower()
             unique_tournament_name = e.get("tournament", {}).get("uniqueTournament", {}).get("name", "").lower()
             
-            is_world_cup = (
-                "world cup" in tournament_name or
-                "world cup" in unique_tournament_name or
-                "world championship" in tournament_name or
-                "world championship" in unique_tournament_name or
-                "worldcup" in tournament_name or
-                "worldcup" in unique_tournament_name
-            )
-            if is_world_cup:
+            target_tournaments = [
+                "world cup", "world championship", "worldcup",
+                "euro", "copa america", "champions league", "europa league",
+                "premier league", "la liga", "la-liga", "laliga", "serie a", "bundesliga",
+                "ligue 1", "eredivisie", "primeira liga", "mls", "major league soccer",
+                "copa libertadores", "liga mx", "super lig", "pro league", "championship",
+                "fa cup", "copa del rey", "coppa italia", "dfb pokal", "coupe de france",
+                "brasileirao", "liga profesional", "k league", "j1 league", "a-league",
+                "african cup of nations", "afcon", "asian cup"
+            ]
+            
+            is_target_league = any(t in tournament_name or t in unique_tournament_name for t in target_tournaments)
+            if is_target_league:
                 wc_events.append(e)
                 
         return wc_events

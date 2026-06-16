@@ -255,8 +255,14 @@ def complete_payment(invoice_id: str) -> bool:
         invite_link = "https://t.me/joinchat/mock_premium_invite_link"
         try:
             resp = requests.post(url, json=payload, timeout=10)
-            if resp.status_code == 200 and resp.json().get("ok"):
-                invite_link = resp.json().get("result", {}).get("invite_link")
+            if resp.status_code == 200:
+                res_json = resp.json()
+                if res_json.get("ok"):
+                    invite_link = res_json.get("result", {}).get("invite_link")
+                else:
+                    logging.error(f"Telegram createChatInviteLink returned error: {res_json.get('description')}")
+            else:
+                logging.error(f"Telegram createChatInviteLink HTTP error {resp.status_code}: {resp.text}")
         except Exception as invite_err:
             logging.error(f"Error generating invite link: {invite_err}")
             
