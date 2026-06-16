@@ -1,85 +1,37 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  # 🌐 1. The Core Python Agent Web Application Backend
-  web_agent:
+  # 🌐 Node 1: The FastAPI Web Engine
+  web_backend:
     build: .
-    container_name: arbitrage_web_engine
+    container_name: arena_web_backend
     restart: unless-stopped
     ports:
       - "8000:8000"
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
     environment:
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - LISTMONK_API_URL=http://listmonk_app:9000/api
-      - LISTMONK_USERNAME=${LISTMONK_USERNAME}
-      - LISTMONK_PASSWORD=${LISTMONK_PASSWORD}
-      - LISTMONK_CAMPAIGN_LIST_ID=${LISTMONK_CAMPAIGN_LIST_ID}
-      - LISTMONK_DB_HOST=listmonk_db
-      - LISTMONK_DB_PORT=5432
-      - LISTMONK_DB_USER=arena_admin
-      - LISTMONK_DB_PASSWORD=${LISTMONK_DB_PASSWORD}
-      - LISTMONK_DB_DATABASE=arena_mailing_db
-      - SMTP_HOST=listmonk_mailpit
-      - SMTP_PORT=1025
-      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-Arbitrage Arena <arbitragearena@xyz>}
+      - TELEGRAM_FREE_CHANNEL_ID=${TELEGRAM_FREE_CHANNEL_ID}
+      - TELEGRAM_PREMIUM_CHANNEL_ID=${TELEGRAM_PREMIUM_CHANNEL_ID}
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - arena_network
-    depends_on:
-      - listmonk_app
 
-  # 📧 2. Listmonk Core Mail Engine Application
-  listmonk_app:
-    image: listmonk/listmonk:latest
-    container_name: listmonk_app
+  # 🐍 Node 2: The Web3 Blockchain Watcher
+  watcher_daemon:
+    build: .
+    container_name: arena_watcher_daemon
     restart: unless-stopped
-    ports:
-      - "9000:9000"
-    command: [sh, -c, "./listmonk --install --idempotent --yes && ./listmonk --upgrade --yes && ./listmonk"]
+    # Executes the watcher script instead of a web server
+    command: python watcher.py
     environment:
-      - LISTMONK_app__address=0.0.0.0:9000
-      - LISTMONK_db__host=listmonk_db
-      - LISTMONK_db__port=5432
-      - LISTMONK_db__user=arena_admin
-      - LISTMONK_db__password=${LISTMONK_DB_PASSWORD}
-      - LISTMONK_db__database=arena_mailing_db
-      - LISTMONK_db__ssl_mode=disable
-      - LISTMONK_ADMIN_USER=listmonk_admin
-      - LISTMONK_ADMIN_PASSWORD=${LISTMONK_ADMIN_PASSWORD}
-    volumes:
-      - ./listmonk/uploads:/listmonk/uploads:rw
+      - WEB3_PROVIDER_RPC_URL=${WEB3_PROVIDER_RPC_URL}
+      - CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - arena_network
-    depends_on:
-      - listmonk_db
-
-  # 🗄️ 3. Isolated Relational Database Layer for Listmonk
-  listmonk_db:
-    image: postgres:17-alpine
-    container_name: listmonk_db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=arena_admin
-      - POSTGRES_PASSWORD=${LISTMONK_DB_PASSWORD}
-      - POSTGRES_DB=arena_mailing_db
-    volumes:
-      - arena_postgres_storage:/var/lib/postgresql/data
-    networks:
-      - arena_network
-
-  # 📬 4. Mailpit SMTP capturing server
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: listmonk_mailpit
-    restart: unless-stopped
-    ports:
-      - "8025:8025"
-      - "1025:1025"
-    networks:
-      - arena_network
-
-volumes:
-  arena_postgres_storage:
 
 networks:
   arena_network:
+    driver: bridge
