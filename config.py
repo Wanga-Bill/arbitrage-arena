@@ -40,6 +40,10 @@ class Config:
     INCOME_ACCESS_LINK = os.getenv("YOUR_INCOME_ACCESS_AFFILIATE_LINK", "YOUR_INCOME_ACCESS_AFFILIATE_LINK")
     GAMBLING_ATTACK_LINK = os.getenv("YOUR_GAMBLING_ATTACK_AFFILIATE_LINK", "YOUR_GAMBLING_ATTACK_AFFILIATE_LINK")
 
+    # PowerDNS Infrastructure
+    PDNS_API_KEY = os.getenv("PDNS_API_KEY")
+    VPS_IP = os.getenv("VPS_IP")
+
     @classmethod
     def validate(cls, component="all"):
         """Validates that all critical credentials are set and secure for a specific component."""
@@ -73,6 +77,11 @@ class Config:
             
         if component == "landing_page":
             required_vars["LISTMONK_PASSWORD"] = cls.LISTMONK_PASSWORD
+
+        if component == "dns":
+            required_vars["PDNS_API_KEY"] = cls.PDNS_API_KEY
+            required_vars["VPS_IP"] = cls.VPS_IP
+
 
         # 2. Check required credentials
         for name, value in required_vars.items():

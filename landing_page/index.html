@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Cup Arbitrage Anomaly Agent - Sports Analytics</title>
+    <title>Arbitrage Arena - Sports Analytics</title>
     <meta name="description" content="AI-Powered mathematical anomaly alerts for live World Cup and global football matches, expanding to the entire sports industry.">
     
     <!-- Google Fonts -->
@@ -1062,7 +1062,7 @@
         <section class="hero">
             
             <div class="hero-content">
-                <h1>World Cup <span>Arbitrage Anomaly</span> Agent</h1>
+                <h1>Arbitrage <span>Arena</span></h1>
                 <p>Stay ahead of sports books. Our real-time data science engine monitors live World Cup fixtures, analyzes dynamic anomalies, and broadcasts instant alerts to Telegram. Currently focused on the World Cup, preparing for wider football leagues and multi-sport arbitrage in Beta 2.</p>
                 
                 <!-- Subscription Form -->
@@ -1208,7 +1208,7 @@
                 <!-- Phase 1: Current -->
                 <div class="roadmap-card active">
                     <div class="roadmap-phase">Phase 1 (Current Focus)</div>
-                    <h4>World Cup Arbitrage Anomaly Agent</h4>
+                    <h4>Arbitrage Arena</h4>
                     <p>Real-time statistical anomaly monitoring and Telegram broadcast for all live World Cup fixtures. Our live-data feed is fine-tuned to capture high-pressure scoreless intervals, corner rate spikes, and physical card blitzes.</p>
                 </div>
 
@@ -1281,18 +1281,232 @@
         setTimeout(addSimulatedAlert, 800);
         setInterval(addSimulatedAlert, 6000);
 
+        let botUsername = 'sport_anomalybot';
+        let subscriberEmail = '';
+        let selectedFrequency = 3; // Default Spicy Mode (3 hours)
+
         // Form handler
         function handleFormSubmit(event) {
             event.preventDefault();
             const emailInput = document.getElementById('emailInput');
-            const waitlistForm = document.getElementById('waitlistForm');
-            const successMsg = document.getElementById('successMsg');
-            
-            if (emailInput.value) {
-                waitlistForm.style.display = 'none';
-                successMsg.style.display = 'flex';
+            if (emailInput && emailInput.value) {
+                openPrefModal(emailInput.value);
             }
         }
+
+        function openPrefModal(email) {
+            subscriberEmail = email;
+            document.getElementById('emailInput').value = '';
+            const modal = document.getElementById('prefModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closePrefModal() {
+            const modal = document.getElementById('prefModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function setFreqOption(freq) {
+            selectedFrequency = freq;
+            document.querySelectorAll('.pref-freq-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            const selectedCard = document.getElementById('freqOption' + freq);
+            if (selectedCard) {
+                selectedCard.classList.add('active');
+            }
+        }
+
+        function saveUserPreferences() {
+            if (!subscriberEmail) return;
+            
+            const saveBtn = document.querySelector('.pref-save-btn');
+            const saveSuccess = document.getElementById('prefSaveSuccess');
+            
+            if (saveBtn) saveBtn.disabled = true;
+            
+            fetch('/api/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: subscriberEmail,
+                    frequency: selectedFrequency
+                })
+            })
+            .then(resp => {
+                if (!resp.ok) throw new Error('Subscription API request failed');
+                return resp.json();
+            })
+            .then(data => {
+                if (saveSuccess) {
+                    saveSuccess.style.display = 'block';
+                    saveSuccess.textContent = '⚡ Preferences updated! Let\'s cook bestie!';
+                }
+                
+                setTimeout(() => {
+                    closePrefModal();
+                    
+                    const waitlistForm = document.getElementById('waitlistForm');
+                    const successMsg = document.getElementById('successMsg');
+                    if (waitlistForm) waitlistForm.style.display = 'none';
+                    if (successMsg) {
+                        successMsg.style.display = 'flex';
+                        successMsg.innerHTML = `<span>✓</span> Bestie, you're locked in! Dynamic spam incoming at ${selectedFrequency}h intervals!`;
+                    }
+                }, 1500);
+            })
+            .catch(err => {
+                console.error(err);
+                if (saveSuccess) {
+                    saveSuccess.style.display = 'block';
+                    saveSuccess.style.color = 'var(--accent-pink)';
+                    saveSuccess.textContent = '❌ Subscription failed. Please try again.';
+                }
+                if (saveBtn) saveBtn.disabled = false;
+            });
+        }
+
+        function loadPastAnalysis() {
+            fetch('past_analysis.json?t=' + Date.now())
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load past analysis');
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('ledgerWinRate').textContent = (data.win_rate || 0) + '%';
+                    document.getElementById('ledgerProfitUsd').textContent = data.profit_usd || '$0.00';
+                    document.getElementById('ledgerProfitKes').textContent = data.profit_kes || 'KES +0';
+                    document.getElementById('ledgerTotal').textContent = data.total_evaluated || '0';
+                    
+                    const brier = typeof data.brier_score === 'number' ? data.brier_score.toFixed(4) : '0.0000';
+                    document.getElementById('ledgerBrier').textContent = brier;
+                })
+                .catch(err => console.error('Error loading past analysis:', err));
+        }
+
+        function loadMatchRadar() {
+            fetch('schedule.json?t=' + Date.now())
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load match schedule');
+                    return response.json();
+                })
+                .then(events => {
+                    const radarGrid = document.getElementById('radarGrid');
+                    if (!radarGrid) return;
+                    
+                    if (!events || events.length === 0) {
+                        radarGrid.innerHTML = `
+                            <div class="radar-loading">
+                                <p>No scheduled matches found for today.</p>
+                            </div>`;
+                        return;
+                    }
+                    
+                    const targetTournaments = [
+                        "world cup", "world championship", "worldcup", "euro", "copa america",
+                        "champions league", "europa league", "premier league", "la liga", "laliga",
+                        "serie a", "bundesliga", "ligue 1"
+                    ];
+                    
+                    const filtered = events.filter(event => {
+                        const tName = (event.tournament?.name || '').toLowerCase();
+                        const utName = (event.tournament?.uniqueTournament?.name || '').toLowerCase();
+                        return targetTournaments.some(t => tName.includes(t) || utName.includes(t));
+                    });
+                    
+                    if (filtered.length === 0) {
+                        radarGrid.innerHTML = `
+                            <div class="radar-loading">
+                                <p>No major league matches scheduled for today.</p>
+                            </div>`;
+                        return;
+                    }
+                    
+                    filtered.sort((a, b) => {
+                        const statusA = a.status?.type || 'notstarted';
+                        const statusB = b.status?.type || 'notstarted';
+                        
+                        const val = { 'live': 0, 'inprogress': 0, 'notstarted': 1, 'finished': 2 };
+                        const scoreA = val[statusA] !== undefined ? val[statusA] : 1;
+                        const scoreB = val[statusB] !== undefined ? val[statusB] : 1;
+                        
+                        return scoreA - scoreB || a.startTimestamp - b.startTimestamp;
+                    });
+                    
+                    let html = '';
+                    filtered.slice(0, 9).forEach(event => {
+                        const isLive = event.status?.type === 'live' || event.status?.type === 'inprogress' || 
+                                       (event.status?.description && event.status.description.toLowerCase().includes('half')) ||
+                                       event.status?.description === 'Halftime';
+                        
+                        let statusClass = 'status-notstarted';
+                        let statusText = 'Upcoming';
+                        let btnText = 'Set Reminder';
+                        
+                        if (isLive) {
+                            statusClass = 'status-live';
+                            statusText = event.status?.description || 'LIVE';
+                            btnText = 'Monitor Feed';
+                        } else if (event.status?.type === 'finished') {
+                            statusClass = 'status-finished';
+                            statusText = 'Ended';
+                            btnText = 'View Stats';
+                        }
+                        
+                        const homeTeam = event.homeTeam?.name || 'Home';
+                        const awayTeam = event.awayTeam?.name || 'Away';
+                        
+                        const homeScore = event.homeScore?.current !== undefined ? event.homeScore.current : '-';
+                        const awayScore = event.awayScore?.current !== undefined ? event.awayScore.current : '-';
+                        
+                        const startTime = new Date(event.startTimestamp * 1000);
+                        const formattedTime = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const formattedDate = startTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                        
+                        html += `
+                            <div class="radar-card ${isLive ? 'live-match' : ''}">
+                                <div class="match-header">
+                                    <span class="match-tournament">${event.tournament?.name || 'Football Match'}</span>
+                                    <span class="match-status ${statusClass}">${statusText}</span>
+                                </div>
+                                <div class="match-teams">
+                                    <div class="team-row">
+                                        <span>${homeTeam}</span>
+                                        <span class="team-score">${homeScore}</span>
+                                    </div>
+                                    <div class="team-row">
+                                        <span>${awayTeam}</span>
+                                        <span class="team-score">${awayScore}</span>
+                                    </div>
+                                </div>
+                                <div class="match-footer">
+                                    <span class="match-time">🕒 ${formattedDate} ${formattedTime}</span>
+                                    <a href="https://t.me/${botUsername}" target="_blank" class="match-action-btn">${btnText}</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    radarGrid.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Error loading match schedule:', err);
+                    const radarGrid = document.getElementById('radarGrid');
+                    if (radarGrid) {
+                        radarGrid.innerHTML = `
+                            <div class="radar-loading">
+                                <p style="color: var(--accent-pink);">Failed to sync match schedule feed.</p>
+                            </div>`;
+                    }
+                });
+        }
+
 
         // Dynamic Config Loader
         document.addEventListener('DOMContentLoaded', () => {
