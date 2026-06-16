@@ -396,8 +396,13 @@ def export_past_analysis():
         logging.error(f"Error exporting past analysis: {e}")
 
 def run_pipeline():
+    # Safe environment diagnostic logs
+    logging.info(f"RAPIDAPI_KEY loaded: {'YES' if Config.RAPIDAPI_KEY else 'NO'}")
+    logging.info(f"TELEGRAM_BOT_TOKEN loaded: {'YES' if Config.TELEGRAM_BOT_TOKEN else 'NO'}")
+    
     # Validate environment configurations
     Config.validate(component="engine")
+
     
     logging.info("OpenClaw heartbeat triggered. Commencing live data parse...")
     backtest_handler.initialize_memory_db()
