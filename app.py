@@ -22,7 +22,7 @@ app = FastAPI(title="Arbitrage Arena Web Engine")
 # Extract configurations
 LISTMONK_URL = os.getenv("LISTMONK_API_URL", "http://localhost:9000/api")
 LISTMONK_USER = os.getenv("LISTMONK_USERNAME", "api_agent")
-LISTMONK_PASS = os.getenv("LISTMONK_PASSWORD", "8vNiP7dgh13dntgtRYAOylPR1C6BN4PH")
+LISTMONK_PASS = os.getenv("LISTMONK_PASSWORD")
 
 class SubscribeRequest(BaseModel):
     email: str
@@ -362,7 +362,7 @@ def sync_smtp_settings():
     escaped_smtp = smtp_json.replace("'", "''")
     
     api_user = os.getenv("LISTMONK_USERNAME", "api_agent")
-    api_pass = os.getenv("LISTMONK_PASSWORD", "8vNiP7dgh13dntgtRYAOylPR1C6BN4PH")
+    api_pass = os.getenv("LISTMONK_PASSWORD")
     
     sql_updates = f"""
     UPDATE settings SET value = '{escaped_from}' WHERE key = 'app.from_email';

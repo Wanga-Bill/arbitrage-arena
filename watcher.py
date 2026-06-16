@@ -101,7 +101,7 @@ def listmonk_sync_wallet_target(user_address: str, expiry_timestamp: int):
     
     listmonk_url = os.getenv("LISTMONK_API_URL", "http://localhost:9000/api")
     username = os.getenv("LISTMONK_USERNAME", "api_agent")
-    password = os.getenv("LISTMONK_PASSWORD", "8vNiP7dgh13dntgtRYAOylPR1C6BN4PH")
+    password = os.getenv("LISTMONK_PASSWORD")
     list_id = os.getenv("LISTMONK_CAMPAIGN_LIST_ID", "1")
     
     if not (listmonk_url and username and password):
@@ -177,7 +177,7 @@ def trigger_welcome_email(recipient_email: str):
     """Dispatches onboarding transactional notifications upon active block confirmations."""
     listmonk_url = os.getenv("LISTMONK_API_URL", "http://localhost:9000/api")
     username = os.getenv("LISTMONK_USERNAME", "api_agent")
-    password = os.getenv("LISTMONK_PASSWORD", "8vNiP7dgh13dntgtRYAOylPR1C6BN4PH")
+    password = os.getenv("LISTMONK_PASSWORD")
     
     tx_endpoint = f"{listmonk_url}/tx"
     payload = {
@@ -203,7 +203,7 @@ async def check_expirations_loop(poll_interval: int = 60):
         try:
             listmonk_url = os.getenv("LISTMONK_API_URL", "http://localhost:9000/api")
             username = os.getenv("LISTMONK_USERNAME", "api_agent")
-            password = os.getenv("LISTMONK_PASSWORD", "8vNiP7dgh13dntgtRYAOylPR1C6BN4PH")
+            password = os.getenv("LISTMONK_PASSWORD")
             list_id = os.getenv("LISTMONK_CAMPAIGN_LIST_ID", "1")
             
             if listmonk_url and username and password:
