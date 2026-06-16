@@ -32,6 +32,28 @@ services:
     networks:
       - arena_network
 
+  # 🤖 Node 3: The Telegram Billing & Payment Daemon
+  payment_daemon:
+    build: .
+    container_name: arena_payment_daemon
+    restart: unless-stopped
+    command: python components/payments/payment_daemon.py
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_PAYMENT_PROVIDER_TOKEN=${TELEGRAM_PAYMENT_PROVIDER_TOKEN}
+      - SAFARICOM_DARAJA_CONSUMER_KEY=${SAFARICOM_DARAJA_CONSUMER_KEY}
+      - SAFARICOM_DARAJA_CONSUMER_SECRET=${SAFARICOM_DARAJA_CONSUMER_SECRET}
+      - SAFARICOM_SHORTCODE=${SAFARICOM_SHORTCODE}
+      - SAFARICOM_PASSKEY=${SAFARICOM_PASSKEY}
+      - SAFARICOM_CALLBACK_URL=${SAFARICOM_CALLBACK_URL}
+      - CRYPTOPAY_API_KEY=${CRYPTOPAY_API_KEY}
+      - CRYPTOPAY_WEBHOOK_SECRET=${CRYPTOPAY_WEBHOOK_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - TELEGRAM_FREE_CHANNEL_ID=${TELEGRAM_FREE_CHANNEL_ID}
+      - TELEGRAM_PREMIUM_CHANNEL_ID=${TELEGRAM_PREMIUM_CHANNEL_ID}
+    networks:
+      - arena_network
+
 networks:
   arena_network:
     driver: bridge

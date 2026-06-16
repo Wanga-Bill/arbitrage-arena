@@ -543,6 +543,7 @@ def run_pipeline():
                     logging.info(f"Premium signal successfully pushed to VIP layer. Tier: {anomaly_type}")
                     
                     # Construct and send teaser to Free Channel
+                    bot_link = f"https://t.me/{Config.TELEGRAM_BOT_USERNAME}"
                     teaser_message = (
                         "🔒 *[VIP MODEL MISMATCH ISOLATED]* 🔒\n\n"
                         f"🏟️ *Match*: {match['homeTeam']['name']} vs {match['awayTeam']['name']}\n"
@@ -550,7 +551,7 @@ def run_pipeline():
                         "⚠️ *Line Sensitivity Restriction:* This premium model alert has cleared our highest risk-mitigation metrics. "
                         "To shield the position from immediate odds devaluation by bookmakers, access is closed to public users.\n\n"
                         "👇 *Unlock the live position target and mirror the smart money instantly:* \n"
-                        f"👉 [Get a 7-Day Weekly Pass ($9.99) or Full Monthly Access ($29.99)]({Config.WHOP_CHECKOUT_LINK})"
+                        f"👉 [Get a 7-Day Weekly Pass ($9.99) or Full Monthly Access ($29.99)]({bot_link})"
                     )
                     success_free = send_telegram_alert(teaser_message, is_premium=False)
                     success = success_premium or success_free

@@ -18,6 +18,11 @@ workspace_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(dotenv_path=os.path.join(workspace_dir, ".env"))
 from config import Config
 
+# Add payment components to system path and import
+sys.path.append(os.path.join(workspace_dir, "components", "payments"))
+import payment_engine
+
+
 app = FastAPI(title="Arbitrage Arena Web Engine")
 
 # Extract configurations
@@ -446,6 +451,89 @@ def startup_event():
     # Start Email Reminder Daemon Thread
     daemon_thread = threading.Thread(target=run_email_reminder_daemon, daemon=True)
     daemon_thread.start()
+
+    # Initialize Billing Ledger database table
+    try:
+        conn = sqlite3.connect(payment_engine.DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS billing_ledger (
+                invoice_id TEXT PRIMARY KEY,
+                tg_user_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                currency TEXT NOT NULL,
+                gateway TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed')),
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        print("[DB Init] Billing ledger table initialized successfully.")
+    except Exception as dbe:
+        print(f"[DB Init Error] Failed to initialize billing ledger: {dbe}")
+
+# Webhook endpoints for payments
+@app.post("/webhook/mpesa")
+async def mpesa_webhook(request: Request):
+    try:
+        body = await request.body()
+        payload = json.loads(body.decode('utf-8'))
+        print(f"[API Webhook] M-Pesa STK Callback Payload: {json.dumps(payload)}")
+        
+        stk_callback = payload.get("Body", {}).get("stkCallback", {})
+        req_id = stk_callback.get("MerchantRequestID")
+        res_code = stk_callback.get("ResultCode")
+        
+        if res_code == 0:
+            print(f"[API Webhook] M-Pesa payment SUCCESS for transaction {req_id}")
+            payment_engine.complete_payment(req_id)
+        else:
+            print(f"[API Webhook] M-Pesa payment FAILED / CANCELLED for transaction {req_id}. ResultCode: {res_code}")
+            payment_engine.fail_payment(req_id)
+            
+        return {"ResultCode": 0, "ResultDesc": "Success"}
+    except Exception as e:
+        print(f"[API Webhook Error] M-Pesa callback handler error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/webhook/cryptopay")
+async def cryptopay_webhook(request: Request):
+    try:
+        body = await request.body()
+        signature = request.headers.get("Crypto-Pay-API-Signature")
+        import hmac
+        import hashlib
+        
+        secret = Config.CRYPTOPAY_WEBHOOK_SECRET or Config.CRYPTOPAY_API_KEY or "MOCK_SECRET"
+        secret_hash = hashlib.sha256(secret.encode()).digest()
+        calculated = hmac.new(secret_hash, body, hashlib.sha256).hexdigest()
+        
+        if secret != "MOCK_SECRET" and not hmac.compare_digest(calculated, signature or ""):
+            print("[API Webhook] CryptoPay Webhook Signature verification failed!")
+            raise HTTPException(status_code=401, detail="Unauthorized signature")
+            
+        payload = json.loads(body.decode('utf-8'))
+        print(f"[API Webhook] CryptoPay Callback Verified: {json.dumps(payload)}")
+        
+        update_type = payload.get("update_type")
+        invoice_data = payload.get("payload", {})
+        invoice_id = str(invoice_data.get("invoice_id"))
+        status = invoice_data.get("status")
+        
+        if update_type == "invoice_paid" and status == "paid":
+            print(f"[API Webhook] CryptoPay payment SUCCESS for invoice {invoice_id}")
+            payment_engine.complete_payment(invoice_id)
+        elif status in ["expired", "failed"]:
+            print(f"[API Webhook] CryptoPay payment {status.upper()} for invoice {invoice_id}")
+            payment_engine.fail_payment(invoice_id)
+            
+        return JSONResponse(status_code=200, content={"status": "ok"})
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"[API Webhook Error] CryptoPay callback handler error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Define frontend static routes
 # Order is important: explicit routes first, then the fallback static files mount at '/'

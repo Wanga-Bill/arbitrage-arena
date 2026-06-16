@@ -160,6 +160,14 @@ def process_single_update(update):
         chat_id = msg.get("chat", {}).get("id")
         text = msg.get("text", "").strip()
         
+        # Handle successful Telegram Card Payment (Stripe/PayPal)
+        successful_payment = msg.get("successful_payment")
+        if successful_payment:
+            invoice_payload = successful_payment.get("invoice_payload")
+            logging.info(f"Received Telegram successful_payment message for payload: {invoice_payload}")
+            payment_engine.complete_payment(invoice_payload)
+            return
+            
         if not text or not chat_id:
             return
             
