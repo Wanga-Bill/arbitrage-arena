@@ -16,4 +16,4 @@ agent_memory.db
 database.db
 feedback_loop.json
 landing_page/config.json
-
+.env.backup
